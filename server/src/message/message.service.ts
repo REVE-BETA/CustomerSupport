@@ -54,7 +54,8 @@ export class MessageService {
     try {
       return this.messageRepository.query(
         `SELECT * FROM message WHERE agentId = ? AND customerIdId = ?`,
-        [createMessageDto.agentId, createMessageDto.customer_id])
+        [createMessageDto.agentId, createMessageDto.customer_id]
+      )
     } catch (error) {
       // Handle any errors (e.g., database errors)
      return (`Failed to retrieve messages: ${error.message}`);
@@ -64,9 +65,12 @@ export class MessageService {
   //////////////////////////////////////////
   async findAll_for_customer(createMessageDto: CreateMessageDto) {
     try {
-      return this.messageRepository.find({
-        where: { customer_id: createMessageDto.customer_id },
-      });
+      return this.messageRepository.query(`
+        SELECT * FROM message
+        WHERE customerIdId = ?
+        AND agentId = ?
+      `, [createMessageDto.customer_id, createMessageDto.agentId])
+
     } catch (error) {
       // Handle any errors (e.g., database errors)
       throw new Error(`Failed to retrieve messages: ${error.message}`);

@@ -70,7 +70,7 @@ export default function Home() {
         "http://localhost:8000/message/findAll_for_sender",
         {
           agentId,
-          customer_id,
+          customerIdId,
         }
       );
       SetMessage(data.data);
@@ -130,7 +130,7 @@ export default function Home() {
       const response = await axios.post(
         "http://localhost:8000/chat/get",
         {
-          chat_receiver: 3,
+          chat_sender: 1,
         }
         // {
         //   headers: {

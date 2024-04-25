@@ -42,4 +42,9 @@ export class ChatController {
   async updateChat(@Param('id') id: number) {
     return this.chatService.updateChat(id);
   }
+
+  @Post('createCustomer')
+  async createCustomer(@Body() createChatDto: CreateChatDto){
+    return this.chatService.createCustomer(createChatDto)
+  }
 }
