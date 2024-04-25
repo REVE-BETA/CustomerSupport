@@ -103,10 +103,6 @@ async getCustomers(createChatDto: CreateChatDto) {
     return `Failed to fetch customers with agent id ${createChatDto.chat_receiver}`;
   }
 }
-
-    
-    
-
     //************GET ALL CUSTOMERS *************/ 
   async getAllCustomers(){
     try{
@@ -149,4 +145,25 @@ async getCustomers(createChatDto: CreateChatDto) {
     }
     /// code left
   }
+
+
+  //insession and customerid    use-effect then store the data in usestate
+  async createCustomer(createChatDto: CreateChatDto){
+    try{
+      const customer = await this.chatRepository.query( `
+        SELECT * FROM chat
+        WHERE chatSenderId = ?
+        AND session = ?
+      `, [createChatDto.chat_sender, SessionStatus.IN_SESSION])
+
+      if(customer.length > 0){
+        console.log("yaaa");
+        return customer
+      }
+    }catch(e){
+      return `faild`
+    }
+  }
+  //message: useeffect from the stored data in the use state and agent id and hard code the customerid
+  
 }
