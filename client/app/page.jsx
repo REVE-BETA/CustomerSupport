@@ -30,12 +30,22 @@ export default function Home() {
   ///////////////////////////////////
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
 
-  const handleConversationClick = useCallback(() => {
+  // const handleConversationClick = useCallback(() => {
+  //   if (sidebarVisible) {
+  //     setSidebarVisible(false);
+  //   }
+  // }, [sidebarVisible, setSidebarVisible]);
+
+  const handleConversationClick = async (agentId, customer_id)=>{
     if (sidebarVisible) {
       setSidebarVisible(false);
     }
-  }, [sidebarVisible, setSidebarVisible]);
-
+    const data = await axios.post('http://localhost:8000/message/findAll_for_sender',{
+      agentId,customer_id
+    })
+console.log(agentId,"   ", customer_id, "the data", data)
+  }
+  //////////////////////////
   useEffect(() => {
     if (sidebarVisible) {
       setSidebarStyle({
@@ -79,10 +89,11 @@ export default function Home() {
       //   console.warn('No token found. User ID cannot be retrieved.');
       //   return; // Early exit if no token
       // }
-        const response = await axios.post(
-        'http://localhost:8000/chat/get',{
-          chat_receiver: 3
-        },
+      const response = await axios.post(
+        "http://localhost:8000/chat/get",
+        {
+          chat_receiver: 3,
+        }
         // {
         //   headers: {
         //     Authorization: `Bearer ${token}`, // Include token for authentication
@@ -92,16 +103,16 @@ export default function Home() {
 
       setChat(response.data);
     } catch (error) {
-      console.error('Error fetching chat data:', error);
+      console.error("Error fetching chat data:", error);
     }
   };
 
   useEffect(() => {
     getChats();
   }, []);
-  console.log(chat, 'the chat')
+  console.log(chat, "the chat");
 
- //////////////////
+  //////////////////
 
   return (
     <main>
@@ -114,20 +125,22 @@ export default function Home() {
         <Sidebar position="left" style={sidebarStyle}>
           <Search placeholder="Search..." />
           <ConversationList>
-            <Conversation onClick={handleConversationClick}>
-              <Avatar
-                src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"
-                name="Lilly"
-                status="available"
-                style={conversationAvatarStyle}
-              />
-              <Conversation.Content
-                name="Lilly"
-                lastSenderName="Lilly"
-                info="Yes i can do it for you"
-                style={conversationContentStyle}
-              />
-            </Conversation>
+            {chat.map((chats) => (
+              <Conversation onClick={()=>handleConversationClick(chats.chatReceiverId, chats.chatSenderId)}>
+                <Avatar
+                  src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"
+                  name={chats.Title}
+                  status="available"
+                  style={conversationAvatarStyle}
+                />
+                <Conversation.Content
+                  name={chats.Title}
+                  lastSenderName="Lilly"
+                  info={chats.createdAt}
+                  style={conversationContentStyle}
+                />
+              </Conversation>
+            ))}
           </ConversationList>
         </Sidebar>
 

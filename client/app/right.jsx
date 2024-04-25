@@ -104,15 +104,14 @@ console.log(users, "users")
           }`}
           onClick={() => setActiveTab("All")}
         >
-          All Requests
-        </button>
+          All         </button>
         <button
           className={`mr-2 px-4 py-2 rounded ${
             activeTab === "open" ? "bg-blue-500 text-white" : "bg-gray-300"
           }`}
           onClick={() => setActiveTab("open")}
         >
-          Open Requests
+          Open 
         </button>
         <button
           className={`px-4 py-2 rounded ${
@@ -120,7 +119,7 @@ console.log(users, "users")
           }`}
           onClick={() => setActiveTab("in_session")}
         >
-          In Session
+          IN_Session
         </button>
       </div>
 

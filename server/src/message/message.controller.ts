@@ -6,12 +6,12 @@ import { CreateMessageDto } from './dto/create-message.dto';
 export class MessageController {
   constructor(private readonly messageService: MessageService) {}
 
-  @Post()
+  @Post('send')
   create(@Body() createMessageDto: CreateMessageDto) {
     return this.messageService.create(createMessageDto);
   }
 
-  @Get('findAll_for_sender')
+  @Post('findAll_for_sender')
   findAll_for_sender(@Body() createMessageDto: CreateMessageDto) {
     return this.messageService.findAll_for_sender(createMessageDto);
   }
