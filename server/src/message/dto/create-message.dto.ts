@@ -7,4 +7,6 @@ export class CreateMessageDto {
      customer_id: Customer;
      agentId: Agent;
      createdAt: Date;
+     Customer_send:boolean;
+     Agent_send:boolean;
 }

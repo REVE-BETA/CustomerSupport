@@ -126,7 +126,7 @@ console.log(users, "users")
       {/* User List*/}
 
       <div className="flex flex-col">
-        <div className="overflow-y-auto">{filteredUsers.map(renderUser)}</div>
+        <div className="overflow-y-auto">{filteredUsers && filteredUsers.map(renderUser)}</div>
       </div>
 
       {/* Action Buttons */}

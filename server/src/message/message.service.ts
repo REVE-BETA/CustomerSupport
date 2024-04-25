@@ -14,7 +14,7 @@ export class MessageService {
   /////////////////////////////////
   async create(createMessageDto: CreateMessageDto) {
     try {
-      const { content, customer_id, agentId } = createMessageDto;
+      const { content, customer_id, agentId, Agent_send, Customer_send } = createMessageDto;
       
       // Check if any required field is empty
       if (!content || !customer_id || !agentId) {
@@ -23,22 +23,31 @@ export class MessageService {
   
       // Execute SQL INSERT statement with parameterized query
       const result = await this.messageRepository.query(
-        `INSERT INTO message (content, customerIdId, agentId) VALUES (?, ?, ?)`,
-        [content, customer_id, agentId]
+        `INSERT INTO message (content, customerIdId, agentId, Agent_send, Customer_send) VALUES (?, ?, ?, ?, ?)`,
+        [content, customer_id, agentId, Agent_send, Customer_send]
       );
-  
       // Check if the insertion was successful
       if (result.affectedRows === 1) {
-        return { message: 'Message created successfully' };
+        const insertedMessage = await this.messageRepository.query(
+          `SELECT * FROM message WHERE id = ?`,
+          [result.insertId]
+        )
+        // Fetch the inserted message from the database using the insertId as the condition
+       // const insertedMessage = await this.messageRepository.findOne(result.insertId);
+        if (insertedMessage) {
+          return insertedMessage;
+        } else {
+          throw new Error(`Failed to retrieve inserted message`);
+        }
       } else {
         throw new Error(`Failed to create message`);
       }
     } catch (error) {
-     return (`Failed to create message: ${error.message}`);
+      return (`Failed to create message: ${error.message}`);
     }
   }
   
-
+  
   ///////////////////////////////////////////
   async findAll_for_sender(createMessageDto: CreateMessageDto) {
     console.log(createMessageDto)

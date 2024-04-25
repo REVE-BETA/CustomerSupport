@@ -18,6 +18,12 @@ export class Message {
   @ManyToOne(() => Agent, (agent) => agent.agent)
   agent: Agent;
 
+  @Column({nullable:true})
+  Agent_send: boolean;
+
+  @Column({nullable:true})
+  Customer_send: boolean;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 }

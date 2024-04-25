@@ -66,29 +66,46 @@ export class ChatService {
       }
     }
     ///////////
-    async getCustomers(createChatDto: CreateChatDto){
-      console.log(createChatDto, "tati")
-      try{
-        if(!createChatDto.chat_receiver){
-          throw new BadRequestException('you have not talked to customers before.');
-        }
-        console.log('ok here');
-        
-        const customers = await this.chatRepository.query(`
-        SELECT * FROM chat
-        WHERE chatReceiverId = ? 
-      `, [createChatDto.chat_receiver])
-        
-       if(customers.length > 0){
-        console.log('customers available');
-        
-        return customers
-       }
-      }catch(error){
-        return `failed to fetch customers with agent id ${createChatDto.chat_receiver}`
-      }
-      
+async getCustomers(createChatDto: CreateChatDto) {
+  console.log(createChatDto, "tati");
+  try {
+    if (!createChatDto.chat_receiver) {
+      throw new BadRequestException('You have not talked to customers before.');
     }
+    console.log('ok here');
+
+    const customers = await this.chatRepository.query(`
+      SELECT
+        chat.id AS chatId,
+        chat.Title AS chatTitle,
+        chat.session AS chatSession,
+        chat.createdAt AS chatCreatedAt,
+        chat.chatSenderId AS chatSenderId,
+        chat.chatReceiverId AS chatReceiverId,
+        JSON_OBJECT(
+          'id', customer.id,
+          'email', customer.email,
+          'phone', customer.phone,
+          'service_name', customer.service_name,
+          'name', customer.name,
+          'isBlocked', customer.isBlocked
+        ) AS chatSender
+      FROM chat
+      INNER JOIN customer ON chat.chatSenderId = customer.id
+      WHERE chat.chatReceiverId = ?
+    `, [createChatDto.chat_receiver]);
+
+    if (customers.length > 0) {
+      console.log('Customers available');
+      return customers;
+    }
+  } catch (error) {
+    return `Failed to fetch customers with agent id ${createChatDto.chat_receiver}`;
+  }
+}
+
+    
+    
 
     //************GET ALL CUSTOMERS *************/ 
   async getAllCustomers(){

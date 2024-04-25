@@ -10,15 +10,18 @@ import {
   ConversationList,
   Conversation,
   Avatar,
-  InfoButton,
   ConversationHeader,
   ToggleConversationListUsingBackButtonStory,
 } from "@chatscope/chat-ui-kit-react";
 import styles from "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
 import UserListComponent from "./right";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 export default function Home() {
+  const inputRef = useRef(null);
+  const [msgInputValue, setMsgInputValue] = useState("");
+  // const [messages, setMessages] = useState([]);
+
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sidebarStyle, setSidebarStyle] = useState({});
   const [chatContainerStyle, setChatContainerStyle] = useState({});
@@ -27,24 +30,59 @@ export default function Home() {
   ///////////////////////////////////
   const [chat, setChat] = useState([]);
   const [message, SetMessage] = useState([]);
+  const [Message_field_active, set_Message_field_active] = useState(false);
+  const [active_customer, set_active_customer] = useState("");
+  const [current_chat, set_current_chat] = useState();
   ///////////////////////////////////
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
+  ///////////////////////
+  const handleSend = async (messages) => {
+    const formatted = {
+      agentId: 3,
+      customer_id: active_customer,
+      content: messages,
+      Agent_send: true,
+      Customer_send: false,
+    };
 
-  // const handleConversationClick = useCallback(() => {
-  //   if (sidebarVisible) {
-  //     setSidebarVisible(false);
-  //   }
-  // }, [sidebarVisible, setSidebarVisible]);
-
-  const handleConversationClick = async (agentId, customer_id)=>{
-    if (sidebarVisible) {
-      setSidebarVisible(false);
+    try {
+      const { data } = await axios.post(
+        "http://localhost:8000/message/send",
+        formatted
+      );
+      console.log(data[0], "message_posted");
+      SetMessage([...message, data[0]]); // Append the new message to the existing messages array
+    } catch (error) {
+      console.error("Error:", error);
     }
-    const data = await axios.post('http://localhost:8000/message/findAll_for_sender',{
-      agentId,customer_id
-    })
-console.log(agentId,"   ", customer_id, "the data", data)
-  }
+
+    setMsgInputValue("");
+    inputRef.current?.focus();
+  };
+
+  ////////////////////
+  const handleConversationClick = async (agentId, customer_id, chatId) => {
+    try {
+      if (sidebarVisible) {
+        setSidebarVisible(false);
+      }
+      const data = await axios.post(
+        "http://localhost:8000/message/findAll_for_sender",
+        {
+          agentId,
+          customer_id,
+        }
+      );
+      SetMessage(data.data);
+
+      set_active_customer(customer_id);
+      await set_current_chat(chat.filter((c) => c.chatId === chatId)); // Await setting current chat
+      set_Message_field_active(true);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
+  };
+
   //////////////////////////
   useEffect(() => {
     if (sidebarVisible) {
@@ -110,10 +148,7 @@ console.log(agentId,"   ", customer_id, "the data", data)
   useEffect(() => {
     getChats();
   }, []);
-  console.log(chat, "the chat");
-
-  //////////////////
-
+  ///////////////////
   return (
     <main>
       <MainContainer
@@ -125,78 +160,131 @@ console.log(agentId,"   ", customer_id, "the data", data)
         <Sidebar position="left" style={sidebarStyle}>
           <Search placeholder="Search..." />
           <ConversationList>
-            {chat.map((chats) => (
-              <Conversation onClick={()=>handleConversationClick(chats.chatReceiverId, chats.chatSenderId)}>
-                <Avatar
-                  src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"
-                  name={chats.Title}
-                  status="available"
-                  style={conversationAvatarStyle}
-                />
-                <Conversation.Content
-                  name={chats.Title}
-                  lastSenderName="Lilly"
-                  info={chats.createdAt}
-                  style={conversationContentStyle}
-                />
-              </Conversation>
-            ))}
+            {chat &&
+              chat.map((chats) => (
+                <Conversation
+                  onClick={() =>
+                    handleConversationClick(
+                      chats.chatReceiverId,
+                      chats.chatSenderId,
+                      chats.chatId
+                    )
+                  }
+                >
+                  <Avatar
+                    src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"
+                    name={chats.chatSender.name}
+                    status="available"
+                    style={conversationAvatarStyle}
+                  />
+                  <Conversation.Content
+                    name={chats.chatSender.name}
+                    lastSenderName="Report"
+                    info={chats.chatTitle}
+                    style={conversationContentStyle}
+                  />
+                </Conversation>
+              ))}
           </ConversationList>
         </Sidebar>
 
         <ChatContainer style={chatContainerStyle}>
-          <ConversationHeader>
-            <ConversationHeader.Back onClick={handleBackClick} />
-            <ToggleConversationListUsingBackButtonStory />
-            <Avatar
-              name="Zoe"
-              src="https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg"
-            />
-            <ConversationHeader.Content
-              info="Active 10 mins ago"
-              userName="Zoe"
-            />
-            <ConversationHeader.Actions>
-              <InfoButton />
-            </ConversationHeader.Actions>
-          </ConversationHeader>
-
+          {active_customer ? (
+            current_chat && (
+              <ConversationHeader>
+                <ConversationHeader.Back onClick={handleBackClick} />
+                <ToggleConversationListUsingBackButtonStory />
+                <Avatar
+                  name="tati"
+                  //name={current_chat.chatSender.name}
+                  src="https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg"
+                />
+                <ConversationHeader.Content
+                  // info=";alksdjf;lakdjfa;ls"
+                  info={current_chat[0].chatTitle}
+                  userName={current_chat[0].chatSender.name}
+                  // userName="Zoe"
+                />
+                <ConversationHeader.Actions>
+                  {
+                    (current_chat[0].chatSession = "in_session" ? (
+                      <button class="hover:bg-green-600 px-4 py-2 rounded bg-green-500 text-white font-bold">
+                        Resolve
+                      </button>
+                    ) : (
+                      <button class="hover:bg-green-600 px-4 py-2 rounded bg-green-500 text-white font-bold">
+                       Completed
+                      </button>
+                    ))
+                  }
+                  {current_chat[0].chatSender.isBlocked ? (
+                    <button class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
+                    >
+                      UnBlock
+                    </button>
+                  ) : (
+                    <button class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold">
+                      Block
+                    </button>
+                  )}
+                </ConversationHeader.Actions>
+              </ConversationHeader>
+            )
+          ) : (
+            <p></p>
+          )}
           <MessageList
           // typingIndicator={<TypingIndicator content="Zoe is typing" />}
           >
             {/* <MessageSeparator content="Saturday, 30 November 2019" /> */}
-            <Message
-              model={{
-                direction: "incoming",
-                message: "Hello my friend",
-                position: "single",
-                sender: "Zoe",
-                sentTime: "15 mins ago",
-              }}
-            >
-              <Avatar
-                name="Zoe"
-                src="https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg"
-              />
-            </Message>
-            <Message
-              avatarSpacer
-              model={{
-                direction: "outgoing",
-                message: "Hello my friend",
-                position: "single",
-                sender: "Patrik",
-                sentTime: "15 mins ago",
-              }}
-            />
+            {Message_field_active ? (
+              message &&
+              message?.map((msg) => (
+                <Message
+                  key={msg.id}
+                  model={{
+                    direction: msg.Agent_send ? "outgoing" : "incoming",
+                    message: msg.content,
+                    position: "single",
+                    sender: "Zoe",
+                    sentTime: msg.createdAt,
+                  }}
+                >
+                  <Avatar
+                    name={msg.content}
+                    src="https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg"
+                  />
+                </Message>
+              ))
+            ) : (
+              <MessageList.Content
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  fontSize: "1.2em",
+                  height: "100%",
+                  justifyContent: "center",
+                  textAlign: "center",
+                }}
+              >
+                No Chat selected yet
+              </MessageList.Content>
+            )}
           </MessageList>
-          <MessageInput placeholder="Type message here" />
+          {active_customer ? (
+            <MessageInput
+              placeholder="Type message here"
+              onSend={handleSend}
+              onChange={setMsgInputValue}
+              value={msgInputValue}
+              ref={inputRef}
+            />
+          ) : (
+            <p></p>
+          )}
         </ChatContainer>
         <Sidebar position="right">
           <UserListComponent />
-          {/* {  <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
-                Open
-              </button>} */}
         </Sidebar>
       </MainContainer>
     </main>
