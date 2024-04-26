@@ -7,14 +7,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Chat, SessionStatus } from './entities/chat.entity';
 import { CreateChatDto } from './dto/create-chat.dto';
-// import { WebsocketGateway } from 'src/socket/websocket.gateway';
+ import { WebSocketGateways } from 'src/socket/websocket.gateway';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectRepository(Chat)
     private readonly chatRepository: Repository<Chat>,
-    // private socket : WebsocketGateway
+     //private socket : WebSocketGateways
   ) {}
 
     async create(createChatDto: CreateChatDto) {
@@ -127,6 +127,8 @@ async getCustomers(createChatDto: CreateChatDto) {
     }
     chat.session = SessionStatus.IN_SESSION;
    chat.chat_receiver = createChatDto.chat_receiver
+   //this.socket.emitStateToGroup(chat, 'agent')
+
     return this.chatRepository.save(chat);
   }
   ///////////////////////
@@ -136,6 +138,7 @@ async getCustomers(createChatDto: CreateChatDto) {
       throw new NotFoundException('Chat not found');
     }
     chat.session = SessionStatus.RESOLVED;
+    //this.socket.emitStateToGroup(chat, 'agent')
     return this.chatRepository.save(chat);
   }
   async updateChat(id : number){

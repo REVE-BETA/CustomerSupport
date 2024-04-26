@@ -14,7 +14,7 @@ import { Agent } from 'src/agent/entities/agent.entity';
   JwtModule.register({
     global: true,// to make it globaly available
     secret: jwtConstants.Access_secret,
-    signOptions: { expiresIn: '60s' },
+    signOptions: { expiresIn: '60d' },
   }),],
   controllers: [AuthController],
   providers: [AuthService, 

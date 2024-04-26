@@ -43,6 +43,7 @@ export class AuthService {
   }
   ////////////////////////
   async Login(AutDTO: CreateAuthDto) {
+    console.log(AutDTO)
     const data = await this.CustomerRepository.findOne({
       where: { email: AutDTO.email },
     });
@@ -54,7 +55,8 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     const payload = { id: data.id, email: data.email, role: "agent" };
+    const payload2 = {id:data.id, email: data.email}
     const access_token =  await this.jwtService.signAsync(payload)
-    return { access_token , payload};
+    return { access_token , payload2};
   }
 }

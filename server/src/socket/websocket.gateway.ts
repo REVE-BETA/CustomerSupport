@@ -1,55 +1,72 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
-import { Injectable } from '@nestjs/common';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  OnGatewayInit,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
+import { Injectable } from '@nestjs/common';
 
+interface user {
+  id: string;
+}
+//////////////////
 interface JwtPayload {
   id: string;
   role: string;
   iat?: number;
   exp?: number;
 }
-
-interface SocketMetaPayload extends JwtPayload {
-  socketId: string;
-}
-
 interface GroupedMessage extends JwtPayload {
   socketId: string;
 }
-
+//////////
+interface messaging extends user {
+  socketId: string;
+}
 @Injectable()
-@WebSocketGateway({ cors: '*' })
-export class WebSocketGateways implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-
+@WebSocketGateway({ cors: '*' }) //OnGatewayInit
+export class WebSocketGateways
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
-  socketMap = new Map<string, SocketMetaPayload>();
   socketMapGroup = new Map<string, GroupedMessage[]>(); // Changed to an array for multiple sockets per role
+  messaging = new Map<string, messaging>();
 
   constructor(private readonly jwt: JwtService) {}
 
-  afterInit(server: Server) {
-    console.log('WebSocket Server Initialized');
-  }
-
   handleConnection(client: Socket) {
-    console.log(`Socket connected: ${client.id}`);
     const token = client.handshake.headers.authorization?.split(' ')[1];
     if (!token) {
       client.disconnect(true);
       console.log('Returned');
       return;
     }
-
     try {
       const payload = this.jwt.verify(token);
-      this.socketMap.set(payload.id, {
-        ...payload,
-        socketId: client.id,
-      });
-
-      if (!this.socketMapGroup.has(payload.role)) {
+     
+        this.messaging.set(payload.id, {
+          ...payload,
+          socketId: client.id,
+        });
+      
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        console.log('Token expired');
+      } else {
+        console.error('Error verifying token:', error);
+      }
+      return;
+    }
+    console.log(`Client connected: ${client.id}`);
+    // this.clients.set(client.id, { id: client.id, socket: client }); // Store the client
+    try {
+      const payload = this.jwt.verify(token);
+       if (!this.socketMapGroup.has(payload.role)) {
         this.socketMapGroup.set(payload.role, []);
       }
 
@@ -69,31 +86,36 @@ export class WebSocketGateways implements OnGatewayInit, OnGatewayConnection, On
       return;
     }
   }
-
+  /////////////////////////
   handleDisconnect(client: Socket) {
     console.log(`Client disconnected: ${client.id}`);
-    this.socketMap.forEach((value, key) => {
-      if (value.socketId === client.id) {
-        this.socketMap.delete(key);
-      }
-    });
-
+    this.messaging.delete(client.id); // Remove the client on disconnect
+    ////////////
     this.socketMapGroup.forEach((group, key) => {
       const updatedGroup = group.filter(socket => socket.socketId !== client.id);
       this.socketMapGroup.set(key, updatedGroup);
     });
   }
 
-  async emitNotificationToGroups(notification: any, role: string) {
-    const sockets = this.socketMapGroup.get(role) ||[];
+  afterInit(server: Server) {
+    console.log('WebSocket Gateway initialized');
+  }
 
-    sockets.forEach(socketMeta => {
-      this.server.to(socketMeta.socketId).emit('resquest', notification);
-    });
+  @SubscribeMessage('joinRoom')
+  handleJoinRoom(client: Socket, chatId: string) {
+    console.log(`Client ${client.id} joining room ${chatId}`);
+    client.join(chatId); // Join the room specified by c_id
+  }
 
-    if (sockets.length === 0) {
-      console.log(`No ${role} users online at the moment!`);
-    }
+  @SubscribeMessage('sendMessage')
+  handleSendMessage(client: Socket, payload: { roomId: string; message: any }) {
+    const { roomId } = payload;
+    console.log(
+      `Sending message "${payload.message.content}" to room ${roomId}`,
+    );
+
+    // Emit the message to all clients in the specified room
+    this.server.to(roomId).emit('message', payload.message);
   }
   ///////////////////
   async emitStateToGroup(state: any, role: string) {
@@ -107,14 +129,28 @@ export class WebSocketGateways implements OnGatewayInit, OnGatewayConnection, On
       console.log(`No ${role} users online at the moment!`);
     }
   }
-  //////////////////
-  @SubscribeMessage('sendMessage')
-  handleMessage(client: Socket, data: any) {
-    this.server.to(data.room).emit('connection', data.message);
-  }
+  ////////////////////
+  @SubscribeMessage('notification')
+  handleNotification(client: Socket, payload: {message: any }) {
+    const { message } = payload;
 
-  @SubscribeMessage('currentUsers')
-  async currentUsers(client: Socket) {
-    client.emit('currentUsers', Array.from(this.socketMap.values()));
+    // Check if the sender exists in the clients map
+    if (this.messaging.has(message.N_receiver)) {
+      console.log(message, 'receiver');
+      // Retrieve the recipient's client object from the map
+      const recipientClient = this.messaging.get(message.N_receiver);
+      console.log(recipientClient, 'recipientClient');
+
+      // Emit the notification to the recipient's socket
+      if (recipientClient) {
+        this.server
+          .to(recipientClient.socketId)
+          .emit("Gnotification", message);
+      } else {
+        console.log(`Client with ID ${message.N_receiver} not found.`);
+      }
+    } else {
+      console.log(`Client with ID ${message.receiver} not found.`);
+    }
   }
 }

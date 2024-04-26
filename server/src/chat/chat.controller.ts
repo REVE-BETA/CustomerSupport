@@ -34,7 +34,7 @@ export class ChatController {
     return this.chatService.getCustomers(createChatDto);
   }
 
-  @Patch('resolved')
+  @Patch('resolved/:id')
   async setSessionToResolved(@Param('id') id: number) {
     return this.chatService.setSessionToResolved(id);
   }
