@@ -17,11 +17,11 @@ import styles from "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
 import UserListComponent from "./right";
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
+import io from "socket.io-client";
+var socket;
 export default function Home() {
   const inputRef = useRef(null);
   const [msgInputValue, setMsgInputValue] = useState("");
-  // const [messages, setMessages] = useState([]);
-
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sidebarStyle, setSidebarStyle] = useState({});
   const [chatContainerStyle, setChatContainerStyle] = useState({});
@@ -33,7 +33,27 @@ export default function Home() {
   const [Message_field_active, set_Message_field_active] = useState(false);
   const [active_customer, set_active_customer] = useState("");
   const [current_chat, set_current_chat] = useState();
+  const [Chat_room, Set_Chat_room] = useState()
   ///////////////////////////////////
+  const token = JSON.parse(localStorage.getItem("access_token"));
+  const { access_token } = token;
+  /////////////////////////
+  useEffect(() => {
+    socket = io("http://localhost:8000/", {
+      extraHeaders: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+    socket.on("message", (messages) => {
+      console.log(messages,"socket_msg")
+      SetMessage((prevmsg)=>[...prevmsg, messages])
+      //setMessages((prevMessages) => [...prevMessages, message]);
+    });
+    return () => {
+      socket.off("message");
+    };
+  }, []);
+  //////////////////////////
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
   ///////////////////////
   const handleSend = async (messages) => {
@@ -51,7 +71,8 @@ export default function Home() {
         formatted
       );
       console.log(data[0], "message_posted");
-      SetMessage([...message, data[0]]); // Append the new message to the existing messages array
+     // SetMessage([...message, data[0]]); // Append the new message to the existing messages array
+      socket.emit("sendMessage", { roomId:Chat_room, message: data[0] });
     } catch (error) {
       console.error("Error:", error);
     }
@@ -59,7 +80,6 @@ export default function Home() {
     setMsgInputValue("");
     inputRef.current?.focus();
   };
-
   ////////////////////
   const handleConversationClick = async (agentId, customer_id, chatId) => {
     try {
@@ -74,15 +94,17 @@ export default function Home() {
         }
       );
       SetMessage(data.data);
+      Set_Chat_room(chatId)
+      socket.emit("joinRoom", chatId);
 
       set_active_customer(customer_id);
       await set_current_chat(chat.filter((c) => c.chatId === chatId)); // Await setting current chat
       set_Message_field_active(true);
+
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
-
   //////////////////////////
   useEffect(() => {
     if (sidebarVisible) {
@@ -144,7 +166,32 @@ export default function Home() {
       console.error("Error fetching chat data:", error);
     }
   };
-
+  //////////////////
+  const handleBlock = async () => {
+    const id = current_chat[0].chatSenderId;
+    const response = await axios.patch(
+      `http://localhost:8000/customers/block/${id}`
+    );
+    console.log(response, "blocked");
+    // await set_current_chat(...current_chat ,current_chat[0].chatSender.isBlocked=true)
+  };
+  ////////////////////
+  const handleResolve = async () => {
+    const id = current_chat[0].chatSenderId;
+    const response = await axios.patch(
+      `http://localhost:8000/chat/resolved/${id}`
+    );
+    console.log(response.data,"resolved");
+  };
+  ///////////////////
+  const handleUnBlock = async () => {
+    const id = current_chat[0].chatSenderId;
+    const response = await axios.patch(
+      `http://localhost:8000/customers/Unblock/${id}`
+    );
+    console.log(response, "unblocked");
+  };
+  ///////////////////
   useEffect(() => {
     getChats();
   }, []);
@@ -174,7 +221,9 @@ export default function Home() {
                   <Avatar
                     src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"
                     name={chats.chatSender.name}
-                    status="available"
+                    status={
+                      chats.chatSession == "in_session" ? "dnd" : "available"
+                    } 
                     style={conversationAvatarStyle}
                   />
                   <Conversation.Content
@@ -206,24 +255,33 @@ export default function Home() {
                   // userName="Zoe"
                 />
                 <ConversationHeader.Actions>
-                  {
-                    (current_chat[0].chatSession = "in_session" ? (
-                      <button class="hover:bg-green-600 px-4 py-2 rounded bg-green-500 text-white font-bold">
-                        Resolve
-                      </button>
-                    ) : (
-                      <button class="hover:bg-green-600 px-4 py-2 rounded bg-green-500 text-white font-bold">
-                       Completed
-                      </button>
-                    ))
-                  }
+                  {current_chat[0].chatSession == "in_session" ? (
+                    <button
+                      class="hover:bg-green-600 px-4 py-2 rounded bg-green-500 text-white font-bold"
+                      onClick={() => handleResolve()}
+                    >
+                      Resolve
+                    </button>
+                  ) : (
+                    <button
+                      disabled={true}
+                      class=" px-4 py-2 rounded bg-green-500 text-white font-bold"
+                    >
+                      Completed
+                    </button>
+                  )}
                   {current_chat[0].chatSender.isBlocked ? (
-                    <button class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
+                    <button
+                      class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
+                      onClick={() => handleUnBlock()}
                     >
                       UnBlock
                     </button>
                   ) : (
-                    <button class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold">
+                    <button
+                      class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
+                      onClick={() => handleBlock()}
+                    >
                       Block
                     </button>
                   )}
