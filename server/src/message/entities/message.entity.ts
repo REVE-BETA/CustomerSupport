@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { Customer } from "src/customers/entities/customer.entity";
 import { Agent } from 'src/agent/entities/agent.entity';
+import { Chat } from 'src/chat/entities/chat.entity';
 
 @Entity()
 export class Message {
@@ -23,6 +24,9 @@ export class Message {
 
   @Column({nullable:true})
   Customer_send: boolean;
+
+  @ManyToOne(() => Chat, (chat) => chat.Chat_id)
+  Chat_id: Chat;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

@@ -2,135 +2,152 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 
 const UserListComponent = () => {
-  // Access token (replace with your logic for fetching and storing it securely)
-  const token = localStorage.getItem('access_token'); // Example using localStorage (not ideal)
+  const token = JSON.parse(localStorage.getItem("access_token"));
+  const { payload2 } = token;
 
-  // State to manage active tab
-  const [activeTab, setActiveTab] = useState("All");
-  const [users, setUsers] = useState([]);
+  const [activeTab, setActiveTab] = useState("Open");
+  const [openChats, setOpenChats] = useState([]);
+  const [resolvedChats, setResolvedChats] = useState([]);
 
-  // Filter users based on active tab
-  const filteredUsers =
-    activeTab === "All"
-      ? users
-      : users.filter((user) => user.session === activeTab);
-
-  // Function to fetch user data with error handling
-  const getRequests = async () => {
+  const getOpenChats = async () => {
     try {
       const response = await axios.get("http://localhost:8000/chat/getAll", {
         headers: {
-          Authorization: `Bearer ${token}`, // Include token for authentication
+          Authorization: `Bearer ${token.access_token}`,
         },
       });
-      setUsers(response.data);
+      setOpenChats(response.data);
     } catch (error) {
-      console.error("Error fetching user data:", error);
-      // You can display an error message to the user here
+      console.error("Error fetching open chats:", error);
     }
   };
-/////////////////////////////////
-  useEffect(() => {
-    getRequests();
-  }, []);
-/////////////////////////////////////////
-  const accept_req =async (id) => {
-    const data = users.filter((user) => user.id !== id);
-    console.log(data);
-    console.log("clicked: ", id);
+
+  const getResolvedChats = async () => {
     try {
-      const response = await axios.patch(`http://localhost:8000/chat/in-session`,
-      {
-        chat_receiver : 3,
-        chatId : id
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Include token for authentication
+      const response = await axios.post(
+        "http://localhost:8000/chat/resolved_customer_for_agent",
+        {
+          chat_receiver: payload2.id,
         },
-      });
-    
+        {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+          },
+        }
+      );
+      setResolvedChats(response.data);
+    } catch (error) {
+      console.error("Error fetching resolved chats:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "Open") {
+      getOpenChats();
+    } else if (activeTab === "Resolved") {
+      getResolvedChats();
+    }
+  }, [activeTab]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
+
+  const accept_req = async (id) => {
+    try {
+      const response = await axios.patch(
+        `http://localhost:8000/chat/in-session`,
+        {
+          chat_receiver: 3, //payload2.id,
+          chatId: id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+          },
+        }
+      );
     } catch (error) {
       console.error("Error changing it to in session:", error);
-      // You can display an error message to the user here
     }
   };
-  /////////////////////////////////////////////
-//console.log(users, "users")
-  const renderUser = (user) => (
-    <div
-      key={user.id}
-      className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
-    >
-      <div className="flex flex-col">
-        <span className="text-lg">{user?.name}</span>
-        {/* User Message */}
-        <p className="text-gray-600 text-sm mt-1">
-          {user?.Title.length > 20
-            ? `${user?.Title.substring(0, 20)}...`
-            : user?.Title}
-        </p>
-      </div>
-      {/* session Buttons */}
-      <div className="flex">
-        {user.session === "open" && (
-          <button
-            className={`mr-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700 flex justify-center items-center`}
-            onClick={() => accept_req(user.id)}
-          >
-            Open
-          </button>
-        )}
-        {user.session !== "open" && (
-          <button
-            disabled
-            className={`mr-2 px-4 py-1 rounded bg-opacity-50 ${
-              user.session === "in_session" ? "bg-orange-500" : "bg-green-500"
-            } text-white font-bold cursor-not-allowed flex justify-center items-center`}
-          >
-            {user.session}
-          </button>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="flex flex-col">
-      {/* Tabs */}
       <div className="flex bg-gray-200 p-2 mb-4">
         <button
           className={`mr-2 px-4 py-2 rounded ${
-            activeTab === "All" ? "bg-blue-500 text-white" : "bg-gray-300"
+            activeTab === "Open" ? "bg-blue-500 text-white" : "bg-gray-300"
           }`}
-          onClick={() => setActiveTab("All")}
+          onClick={() => handleTabChange("Open")}
         >
-          All         </button>
-        <button
-          className={`mr-2 px-4 py-2 rounded ${
-            activeTab === "open" ? "bg-blue-500 text-white" : "bg-gray-300"
-          }`}
-          onClick={() => setActiveTab("open")}
-        >
-          Open 
+          Open
         </button>
         <button
           className={`px-4 py-2 rounded ${
-            activeTab === "in_session" ? "bg-blue-500 text-white" : "bg-gray-300"
+            activeTab === "Resolved" ? "bg-blue-500 text-white" : "bg-gray-300"
           }`}
-          onClick={() => setActiveTab("in_session")}
+          onClick={() => handleTabChange("Resolved")}
         >
-          IN_Session
+          Resolved
         </button>
       </div>
 
-      {/* User List*/}
-
       <div className="flex flex-col">
-        <div className="overflow-y-auto">{filteredUsers && filteredUsers.map(renderUser)}</div>
+        <div className="overflow-y-auto">
+          {activeTab === "Open" &&
+            openChats &&
+            openChats.map((chat) => (
+              <div key={chat.chatId} className="flex items-center justify-between border-b border-gray-200 py-2 px-4">
+                <div className="flex flex-col">
+                  <span className="text-lg">{chat.chatSender?.service_name}</span>
+                  <p className="text-gray-600 text-sm mt-1">
+                    <span>{chat.chatSender?.name}:</span>
+                    {chat?.chatTitle.length > 20
+                      ? `${chat?.chatTitle.substring(0, 20)}...`
+                      : chat?.chatTitle}
+                  </p>
+                </div>
+                <button
+                  className="ml-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700"
+                  onClick={() => accept_req(chat.chatId)}
+                >
+                  Open
+                </button>
+              </div>
+            ))}
+          {activeTab === "Resolved" &&
+            resolvedChats &&
+            resolvedChats.map((chat) => (
+              <div key={chat.chatId} className="flex items-center justify-between border-b border-gray-200 py-2 px-4">
+                <div className="flex flex-col">
+                  <span className="text-lg">{chat.chatSender?.service_name}</span>
+                  <p className="text-gray-600 text-sm mt-1">
+                    <span>{chat.chatSender?.name}:</span>{" "}
+                    {chat?.chatTitle.length > 20
+                      ? `${chat?.chatTitle.substring(0, 20)}...`
+                      : chat?.chatTitle}
+                  </p>
+                </div>
+              
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="ml-2 h-6 w-6 text-green-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            ))}
+        </div>
       </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-end mt-4"></div>
     </div>
   );
 };

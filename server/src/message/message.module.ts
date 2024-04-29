@@ -3,10 +3,12 @@ import { MessageService } from './message.service';
 import { MessageController } from './message.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Message } from './entities/message.entity';
+import { Chat } from '../chat/entities/chat.entity';
+import { ChatService } from 'src/chat/chat.service';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Message])],
+  imports:[TypeOrmModule.forFeature([Message, Chat,])],
   controllers: [MessageController],
-  providers: [MessageService],
+  providers: [MessageService,ChatService],
 })
 export class MessageModule {}

@@ -42,4 +42,25 @@ export class ChatController {
   async updateChat(@Param('id') id: number) {
     return this.chatService.updateChat(id);
   }
+  @Post('createCustomer')
+  async createCustomer(@Body() createChatDto: CreateChatDto){
+    return this.chatService.createCustomer(createChatDto)
+  }
+
+  @Post('get_open_chat_for_customer')
+  async get_open_chat_for_customer(@Body() createChatDto: CreateChatDto){
+    return this.chatService.get_open_chat_for_customer(createChatDto)
+  }
+  @Post('resolved_for_customer')
+  async get_Resolved_chat_for_customer(@Body() createChatDto: CreateChatDto){
+    return this.chatService.get_Resolved_chat_for_customer(createChatDto)
+  }
+  @Post('resolved_customer_for_agent')
+  async get_Resolved_Customers_for_agent(@Body() createChatDto: CreateChatDto){
+    return this.chatService.get_Resolved_Customers_for_agent(createChatDto)
+  }
+  // @Post('open_customer_for_agent')
+  // async Open_customer_for_agent(@Body() createChatDto: CreateChatDto){
+  //   return this.chatService.Open_customer_for_agent(createChatDto)
+  // }
 }

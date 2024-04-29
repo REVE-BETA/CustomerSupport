@@ -1,9 +1,11 @@
 import { Agent } from 'src/agent/entities/agent.entity';
 import { Customer } from 'src/customers/entities/customer.entity';
+import { Message } from 'src/message/entities/message.entity';
 import {
   Column,
   Entity,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -29,6 +31,9 @@ export class Chat {
 
   @Column({ type: 'enum', enum: SessionStatus, default: SessionStatus.OPEN })
   session: SessionStatus;
+
+  @OneToMany(() => Message, (message) => message.Chat_id)
+  Chat_id: Message[];
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

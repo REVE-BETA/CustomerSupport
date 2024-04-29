@@ -47,6 +47,7 @@ export default function Home() {
     socket.on("message", (messages) => {
       console.log(messages,"socket_msg")
       SetMessage((prevmsg)=>[...prevmsg, messages])
+      console.log(messages, "socket")
       //setMessages((prevMessages) => [...prevMessages, message]);
     });
     return () => {
@@ -57,8 +58,9 @@ export default function Home() {
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
   ///////////////////////
   const handleSend = async (messages) => {
+   // console.log(token.payload2.id,"sendmsg")
     const formatted = {
-      agentId: 3,
+      agentId:3,// token.payload2.id,
       customer_id: active_customer,
       content: messages,
       Agent_send: true,
@@ -70,7 +72,6 @@ export default function Home() {
         "http://localhost:8000/message/send",
         formatted
       );
-      console.log(data[0], "message_posted");
      // SetMessage([...message, data[0]]); // Append the new message to the existing messages array
       socket.emit("sendMessage", { roomId:Chat_room, message: data[0] });
     } catch (error) {
@@ -143,30 +144,46 @@ export default function Home() {
   //////////////////////
   const getChats = async () => {
     try {
-      // const token = localStorage.getItem('access_token');
-
-      // if (!token) {
-      //   console.warn('No token found. User ID cannot be retrieved.');
-      //   return; // Early exit if no token
-      // }
+      if (!token) {
+        console.warn('No token found. User ID cannot be retrieved.');
+        return; // Early exit if no token
+      }
+  
       const response = await axios.post(
         "http://localhost:8000/chat/get",
         {
-          chat_receiver: 3,
+          chat_receiver: 3, // Replace with token.payload2.id if applicable
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`, // Include token for authentication
+          },
         }
-        // {
-        //   headers: {
-        //     Authorization: `Bearer ${token}`, // Include token for authentication
-        //   },
-        // }
       );
-
-      setChat(response.data);
+  
+      const chats = response.data; // Assuming response.data contains the chat array
+  
+      // Sort chats based on chatCreatedAt in descending order (latest first)
+      const sortedChats = chats.sort((a, b) => {
+        const dateA = new Date(a.chatCreatedAt);
+        const dateB = new Date(b.chatCreatedAt);
+        return dateB.getTime() - dateA.getTime(); // Descending order
+      });
+  
+      // Filter resolved chats (assuming "resolved" is the value)
+      const resolvedChats = sortedChats.filter((chat) => chat.chatSession === "resolved");
+      const unresolvedChats = sortedChats.filter((chat) => chat.chatSession !== "resolved");
+  
+      // Combine chats in desired order: unresolved first, then resolved
+      const combinedChats = [...unresolvedChats, ...resolvedChats];
+  
+      // Update chat state
+      setChat(combinedChats);
     } catch (error) {
       console.error("Error fetching chat data:", error);
     }
   };
-  //////////////////
+  /////////////////
   const handleBlock = async () => {
     const id = current_chat[0].chatSenderId;
     const response = await axios.patch(
@@ -177,7 +194,8 @@ export default function Home() {
   };
   ////////////////////
   const handleResolve = async () => {
-    const id = current_chat[0].chatSenderId;
+    const id = current_chat[0].chatId;
+    console.log(current_chat[0])
     const response = await axios.patch(
       `http://localhost:8000/chat/resolved/${id}`
     );
@@ -326,7 +344,9 @@ export default function Home() {
                 }}
               >
                 No Chat selected yet
+                <ConversationHeader.Back onClick={handleBackClick} />
               </MessageList.Content>
+              
             )}
           </MessageList>
           {active_customer ? (
