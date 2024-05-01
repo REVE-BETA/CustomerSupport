@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 
@@ -16,8 +16,13 @@ export class MessageController {
     return this.messageService.findAll_for_sender(createMessageDto);
   }
 
-  @Get('findAll_for_customer')
-  findAll_for_customer(@Body() createMessageDto: CreateMessageDto) {
-    return this.messageService.findAll_for_customer(createMessageDto);
+  @Patch('update_messages_agent')
+  update_messages_agent(@Body() createMessageDto: CreateMessageDto) {
+    return this.messageService.update_messages_agent(createMessageDto);
   }
+
+  // @Get('findAll_for_customer')
+  // findAll_for_customer(@Body() createMessageDto: CreateMessageDto) {
+  //   return this.messageService.findAll_for_customer(createMessageDto);
+  // }
 }

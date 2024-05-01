@@ -25,6 +25,9 @@ export class Message {
   @Column({nullable:true})
   Customer_send: boolean;
 
+  @Column({nullable: true, default: false})
+  seen: boolean;
+
   @ManyToOne(() => Chat, (chat) => chat.Chat_id)
   Chat_id: Chat;
 

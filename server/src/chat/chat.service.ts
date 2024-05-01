@@ -17,7 +17,7 @@ export class ChatService {
     //private readonly socket: WebSocketGateways
     //private socket : WebSocketGateways
   ) {}
-  /////////////////////
+  ///////////////////// this metod is called in messages service
   async check_existance_of_chat(content: any, customer_id: any) {
     console.log(content, customer_id);
     try {
@@ -30,6 +30,15 @@ export class ChatService {
         [customer_id, SessionStatus.OPEN],
       );
       ///////
+      if (Checking_If_The_req_Is_Open.length > 0) {
+        console.log(Checking_If_The_req_Is_Open);
+        return {
+          state: 1,// open found
+          data: Checking_If_The_req_Is_Open,
+          chatID: Checking_If_The_req_Is_Open[0].id,
+        };
+        // return 1; // 1 for pending response
+      }
       const Checking_If_The_req_Is_Insession = await this.chatRepository.query(
         `
     SELECT * FROM chat
@@ -39,10 +48,7 @@ export class ChatService {
         [customer_id, SessionStatus.IN_SESSION],
       );
       ///////
-      if (Checking_If_The_req_Is_Open.length > 0) {
-        console.log(Checking_If_The_req_Is_Open);
-        return 1; // 1 for pending response
-      }
+
       ///////
       if (
         !Checking_If_The_req_Is_Insession.length &&
@@ -58,14 +64,34 @@ export class ChatService {
           })
           .execute();
         console.log(newChat);
-        return 2; // 1 for pending response // also we create new open session
+        if (newChat.raw.affectedRows === 1) {
+          const insertedMessage = await this.chatRepository.query(
+            `SELECT * FROM chat WHERE id = ?`,
+            [newChat.identifiers[0].id], // Assuming the inserted ID is available in identifiers
+          );
+
+          if (insertedMessage) {
+           // console.log(insertedMessage, "new tat")
+            return {
+              state: 2,//new or resolved found and create new chat
+              data: insertedMessage,
+              chatID: insertedMessage[0].id,
+            };
+          } else {
+            throw new Error(`Failed to retrieve inserted message`);
+          }
+        } else {
+          throw new Error(`Failed to insert message`);
+        }
+
+        return newChat; // 1 for pending response // also we create new open session
       }
     } catch (error) {
       return { msg: `someting went wrong ${error.message}` };
     }
     // return 0; // no createing of new chat
   }
-
+  /////////////////
   async create(createChatDto: CreateChatDto) {
     try {
       if (!createChatDto.Title || !createChatDto.chat_sender) {
@@ -110,7 +136,6 @@ export class ChatService {
         })
         .execute();
       console.log(newChat);
-
       return newChat;
     } catch (error) {
       // Handle any errors (e.g., database errors)
@@ -274,7 +299,7 @@ export class ChatService {
       INNER JOIN customer ON chat.chatSenderId = customer.id
       WHERE chat.session = ?
     `,
-        [ SessionStatus.OPEN],
+        [SessionStatus.OPEN],
       );
 
       if (customers.length > 0) {

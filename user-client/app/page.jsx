@@ -53,8 +53,10 @@ export default function Home() {
       content: messages, ///
       Agent_send: false,
       Customer_send: true,
+      chatId: room
     };
     try {
+      console.log(formatted, "fofoffofo")
       const { data } = await axios.post(
         "http://localhost:8000/message/send",
         formatted
@@ -101,7 +103,7 @@ export default function Home() {
           chat_sender: token.payload2.id, // Assuming chat_sender is the user ID
         }
       );
-      console.log(response.data.length, "chat");
+     // console.log(response.data.length, "chat");
       if (response.data.length == 0) {
         // console.log( "chatuityu");
         /// if there is not in_session then try to find open session and diplay its message
@@ -111,7 +113,7 @@ export default function Home() {
             chat_sender: token.payload2.id, // Assuming chat_sender is the user ID
           }
         );
-        console.log(response.data, "open chat");
+      //  console.log(response.data, "open chat");
         if (response.data[0].length == 0) {
           return [];
         }
@@ -122,10 +124,27 @@ export default function Home() {
       socket.emit("joinRoom", response.data[0].id);
       set_room(response.data[0].id);
       setChat(response.data); // Assuming setChat updates the chat state
-
+      socket.emit("joinRoom", response.data[0].id);
       agent = response.data[0].chatReceiverId;
       set_Agent_id(response.data[0].chatReceiverId);
       console.log(agent, "agg");
+      try {
+        const data = await axios.post(
+          "http://localhost:8000/message/findAll_for_sender",
+          {
+            agentId: agent,
+            customer_id: token.payload2.id,
+            chatId : response.data[0].id
+          }
+        );
+        console.log(data, 'get me msg', room)
+        if (!data.data) {
+          return [];
+        }
+        SetMessage(data.data);
+      } catch (error) {
+        console.error("Error fetching chat data:", error);
+      }
     } catch (error) {
       console.error("Error fetching chat data:", error);
     }
@@ -135,28 +154,14 @@ export default function Home() {
   const Getmessages = async () => {
     // console.log(agent, 'agent');
     // console.log(chat,"caht")
-    try {
-      const data = await axios.post(
-        "http://localhost:8000/message/findAll_for_sender",
-        {
-          agentId: agent,
-          customer_id: token.payload2.id,
-        }
-      );
-      if (!data.data) {
-        return [];
-      }
-      SetMessage(data.data);
-    } catch (error) {
-      console.error("Error fetching chat data:", error);
-    }
+
   };
   ////////////////
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        getChats().then(() => Getmessages()); // Fetch chat data first
+        getChats()//.then(() => Getmessages()); // Fetch chat data first
       } catch (error) {
         console.error("Error fetching chat data:", error);
       }
@@ -274,12 +279,7 @@ export default function Home() {
             Resolved Chats
           </button>
           <div className="bg-white rounded-lg shadow-md px-4 py-4">
-            {/* <div className="flex justify-between items-center mb-4">
-              <button className="px-4 py-2 text-lg font-medium text-gray-700 hover:text-blue-500">
-                Resolved ({resolvedSessions && resolvedSessions.length})
-              </button>
-            </div> */}
-            <div className="flex flex-col space-y-2">
+             <div className="flex flex-col space-y-2">
               {resolvedSessions &&
                 resolvedSessions.map((session) => (
                   <div

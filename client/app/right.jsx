@@ -67,11 +67,25 @@ const UserListComponent = () => {
           },
         }
       );
+      ////////////////////////
+      const data = await axios.patch(
+        `http://localhost:8000/message/update_messages_agent`,
+        {
+          agentId: payload2.id,
+          chatId: id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+          },
+        }
+      );
+      console.log(data,'msgsssss')
     } catch (error) {
       console.error("Error changing it to in session:", error);
     }
   };
-
+///////////////////////////
   return (
     <div className="flex flex-col">
       <div className="flex bg-gray-200 p-2 mb-4">

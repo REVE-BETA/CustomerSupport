@@ -63,15 +63,18 @@ export default function Home() {
       agentId:3,// token.payload2.id,
       customer_id: active_customer,
       content: messages,
+      chatId:Chat_room,
       Agent_send: true,
       Customer_send: false,
     };
 
     try {
+      console.log(formatted, 'formated')
       const { data } = await axios.post(
         "http://localhost:8000/message/send",
         formatted
       );
+
      // SetMessage([...message, data[0]]); // Append the new message to the existing messages array
       socket.emit("sendMessage", { roomId:Chat_room, message: data[0] });
     } catch (error) {
@@ -92,8 +95,10 @@ export default function Home() {
         {
           agentId,
           customer_id,
+          chatId
         }
       );
+      console.log(data,'messages getted')
       SetMessage(data.data);
       Set_Chat_room(chatId)
       socket.emit("joinRoom", chatId);
@@ -200,6 +205,8 @@ export default function Home() {
       `http://localhost:8000/chat/resolved/${id}`
     );
     console.log(response.data,"resolved");
+    const filt = chat.filter((e)=>e.chatId !== id)
+    setChat(filt)
   };
   ///////////////////
   const handleUnBlock = async () => {

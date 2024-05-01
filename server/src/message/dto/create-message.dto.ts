@@ -1,4 +1,5 @@
 import { Agent } from "src/agent/entities/agent.entity";
+import { Chat } from "src/chat/entities/chat.entity";
 import { Customer } from "src/customers/entities/customer.entity";
 
 export class CreateMessageDto {
@@ -9,4 +10,5 @@ export class CreateMessageDto {
      createdAt: Date;
      Customer_send:boolean;
      Agent_send:boolean;
+     chatId: Chat
 }
