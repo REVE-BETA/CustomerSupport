@@ -19,7 +19,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import io from "socket.io-client";
 var socket;
-export default function Home() {
+export default function Home({ resolvedMessages }) {
+  console.log(resolvedMessages, "resolved in page.jsx");
   const inputRef = useRef(null);
   const [msgInputValue, setMsgInputValue] = useState("");
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -60,7 +61,7 @@ export default function Home() {
   const handleSend = async (messages) => {
    // console.log(token.payload2.id,"sendmsg")
     const formatted = {
-      agentId:3,// token.payload2.id,
+      agentId: token.payload2.id,
       customer_id: active_customer,
       content: messages,
       chatId:Chat_room,
@@ -157,7 +158,7 @@ export default function Home() {
       const response = await axios.post(
         "http://localhost:8000/chat/get",
         {
-          chat_receiver: 3, // Replace with token.payload2.id if applicable
+          chat_receiver: token.payload2.id
         },
         {
           headers: {
@@ -165,9 +166,10 @@ export default function Home() {
           },
         }
       );
+      console.log(response, "response");
   
       const chats = response.data; // Assuming response.data contains the chat array
-  
+  console.log(chats, "chats");
       // Sort chats based on chatCreatedAt in descending order (latest first)
       const sortedChats = chats.sort((a, b) => {
         const dateA = new Date(a.chatCreatedAt);

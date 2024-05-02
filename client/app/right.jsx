@@ -1,14 +1,15 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 
-const UserListComponent = () => {
+const UserListComponent = (r={resolvedMessages} ) => {
   const token = JSON.parse(localStorage.getItem("access_token"));
   const { payload2 } = token;
 
   const [activeTab, setActiveTab] = useState("Open");
   const [openChats, setOpenChats] = useState([]);
   const [resolvedChats, setResolvedChats] = useState([]);
-
+  const [resolvedMessages, setResolvedMessages] = useState([])
+////////////////////////////
   const getOpenChats = async () => {
     try {
       const response = await axios.get("http://localhost:8000/chat/getAll", {
@@ -21,7 +22,7 @@ const UserListComponent = () => {
       console.error("Error fetching open chats:", error);
     }
   };
-
+///////////////////////////
   const getResolvedChats = async () => {
     try {
       const response = await axios.post(
@@ -40,7 +41,7 @@ const UserListComponent = () => {
       console.error("Error fetching resolved chats:", error);
     }
   };
-
+////////////////////////////
   useEffect(() => {
     if (activeTab === "Open") {
       getOpenChats();
@@ -48,11 +49,22 @@ const UserListComponent = () => {
       getResolvedChats();
     }
   }, [activeTab]);
-
+///////////////////////////
   const handleTabChange = (tab) => {
     setActiveTab(tab);
   };
-
+//////////////////////////
+  const getResolvedMessages = async (chatId) => {
+    const data = await axios.post(
+      "http://localhost:8000/message/get-resolved-messages",
+      {
+        chatId
+      }
+    )
+    console.log(data.data, "datatatata");
+    setResolvedMessages(data.data)
+  }
+/////////////////////////
   const accept_req = async (id) => {
     try {
       const response = await axios.patch(
@@ -112,8 +124,14 @@ const UserListComponent = () => {
           {activeTab === "Open" &&
             openChats &&
             openChats.map((chat) => (
-              <div key={chat.chatId} className="flex items-center justify-between border-b border-gray-200 py-2 px-4">
-                <div className="flex flex-col">
+              <div 
+                key={chat.chatId} 
+                className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
+                
+                >
+                <div 
+                  className="flex flex-col" 
+                  >
                   <span className="text-lg">{chat.chatSender?.service_name}</span>
                   <p className="text-gray-600 text-sm mt-1">
                     <span>{chat.chatSender?.name}:</span>
@@ -133,7 +151,11 @@ const UserListComponent = () => {
           {activeTab === "Resolved" &&
             resolvedChats &&
             resolvedChats.map((chat) => (
-              <div key={chat.chatId} className="flex items-center justify-between border-b border-gray-200 py-2 px-4">
+              <div 
+                key={chat.chatId} 
+                className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
+                onClick={()=> getResolvedMessages(chat.chatId)}
+                >
                 <div className="flex flex-col">
                   <span className="text-lg">{chat.chatSender?.service_name}</span>
                   <p className="text-gray-600 text-sm mt-1">

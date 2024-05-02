@@ -169,5 +169,20 @@ export class MessageService {
       throw new Error(`Failed to update messages: ${error.message}`);
     }
   }
+
+  async get_resolved_messages(createMessageDto: CreateMessageDto) {
+    try{
+      const resolvedMessages = await this.messageRepository.query(
+        `SELECT * FROM MESSAGE
+        WHERE chatIdId = ?`,
+        [createMessageDto.chatId]
+      )
+        console.log(resolvedMessages, "resolved message with specific chat id");
+        return resolvedMessages
+
+    }catch(error){
+      return(`Failed to get message ${error.message}`)
+    }
+  }
   
 }

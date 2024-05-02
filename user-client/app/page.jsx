@@ -32,13 +32,16 @@ export default function Home() {
   const [Agent_id, set_Agent_id] = useState();
   const [open_chat_message, set_open_chat_message] = useState();
   const [resolvedSessions, setResolvedSessions] = useState([]);
+  const [getResolvedMessages, setGetResolvedMessages] = useState([]);
+  const [isChatResolved, setIsChatResolved] = useState(false); // State variable to track if chat is resolved
 
   ///////////////////////////////////
+
   const token = JSON.parse(localStorage.getItem("access_token"));
   const { access_token } = token;
   let agent;
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
-
+/////////////////
   // const handleConversationClick = useCallback(() => {
   //   if (sidebarVisible) {
   //     setSidebarVisible(false);
@@ -77,7 +80,6 @@ export default function Home() {
     inputRef.current?.focus();
   };
   // /////////////////socket
-
   useEffect(() => {
     socket = io("http://localhost:8000/", {
       extraHeaders: {
@@ -157,7 +159,22 @@ export default function Home() {
 
   };
   ////////////////
+  const getAllResolvedMessages = async (chatId) => {
+    const response = await axios.post(
+      "http://localhost:8000/message/get-resolved-messages",
+      { chatId: chatId }
+    )
+    console.log(chatId, "iddd");
+    const resmessages = response.data
+    console.log(resmessages, "resolved messages list");
+    console.log(response.data, "dataaaa"); 
 
+    
+    SetMessage(response.data)
+    setIsChatResolved(true);
+    // setGetResolvedMessages((prev) => [...prevmsg, data.data])
+  }
+///////////////////////
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -177,7 +194,7 @@ export default function Home() {
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiZW1haWwiOiJ5ZW51LkAiLCJyb2xlIjoidXNlciIsImlhdCI6MTcxNDA5OTM5OCwiZXhwIjoxNzE5MjgzMzk4fQ.QhHTns8YKlrLbWzK32F9WlNLh8gjmvXuUsSGXepIeIo",
       payload2: {
         id: 3,
-        email: "client_1.@",
+        email: "c3.@",
       },
     });
 
@@ -227,7 +244,7 @@ export default function Home() {
                 }}
               >
                 Welcome to our customer support
-                {/* <button onClick={()=>login()}>login</button> */}
+                {/* <button onClick={()=>login()}>loginNN</button> */}
               </span>
             </ConversationHeader.Content>
           </ConversationHeader>
@@ -264,7 +281,7 @@ export default function Home() {
               ))}
           </MessageList>
 
-          {
+          { !isChatResolved && (
             <MessageInput
               placeholder="Type message here"
               onSend={handleSend}
@@ -272,6 +289,7 @@ export default function Home() {
               value={msgInputValue}
               ref={inputRef}
             />
+          )
           }
         </ChatContainer>
         <Sidebar position="right">
@@ -279,13 +297,13 @@ export default function Home() {
             Resolved Chats
           </button>
           <div className="bg-white rounded-lg shadow-md px-4 py-4">
-             <div className="flex flex-col space-y-2">
+             <div className="flex flex-col space-y-2" >
               {resolvedSessions &&
                 resolvedSessions.map((session) => (
                   <div
                     key={session.id}
                     className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-green-100 cursor-pointer"
-                    onClick={() => console.log("clicked")}
+                    onClick={() => getAllResolvedMessages(session.id)}
                   >
                     <div className="flex flex-col">
                       <p className="text-lg font-medium text-gray-700">
