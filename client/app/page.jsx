@@ -35,6 +35,11 @@ export default function Home() {
   const [active_customer, set_active_customer] = useState("");
   const [current_chat, set_current_chat] = useState();
   const [Chat_room, Set_Chat_room] = useState()
+  const [activeTab, setActiveTab] = useState("Open");
+  const [openChats, setOpenChats] = useState([]);
+  const [resolvedChats, setResolvedChats] = useState([]);
+  const [isChatResolved, setIsChatResolved] = useState(false); // State variable to track if chat is resolved
+
   ///////////////////////////////////
   const token = JSON.parse(localStorage.getItem("access_token"));
   const { access_token } = token;
@@ -42,10 +47,6 @@ export default function Home() {
   // const token = JSON.parse(localStorage.getItem("access_token"));
   const { payload2 } = token;
 
-  const [activeTab, setActiveTab] = useState("Open");
-  const [openChats, setOpenChats] = useState([]);
-  const [resolvedChats, setResolvedChats] = useState([]);
-  const [resolvedMessages, setResolvedMessages] = useState([])
 ////////////////////////////
   const getOpenChats = async () => {
     try {
@@ -90,17 +91,7 @@ export default function Home() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
   };
-//////////////////////////
-  const getResolvedMessages = async (chatId) => {
-    const data = await axios.post(
-      "http://localhost:8000/message/get-resolved-messages",
-      {
-        chatId
-      }
-    )
-    console.log(data.data, "datatatata");
-    setResolvedMessages(data.data)
-  }
+
 /////////////////////////
   const accept_req = async (id) => {
     try {
@@ -306,6 +297,20 @@ export default function Home() {
     const filt = chat.filter((e)=>e.chatId !== id)
     setChat(filt)
   };
+  //////////////////////////
+  const getResolvedMessages = async (chatId) => {
+    const data = await axios.post(
+      "http://localhost:8000/message/get-resolved-messages",
+      {
+        chatId: chatId
+      }
+    )
+    const datas = data.data
+    console.log(datas, "datatatata");
+    SetMessage(datas)
+    console.log(message, "messagesssss");
+    setIsChatResolved(true);
+  }
   ///////////////////
   const handleUnBlock = async () => {
     const id = current_chat[0].chatSenderId;
@@ -454,7 +459,8 @@ export default function Home() {
               
             )}
           </MessageList>
-          {active_customer ? (
+          //active_customer
+          {  !isChatResolved ? (
             <MessageInput
               placeholder="Type message here"
               onSend={handleSend}
@@ -467,92 +473,92 @@ export default function Home() {
           )}
         </ChatContainer>
         <Sidebar position="right">
-        <div className="flex flex-col">
-      <div className="flex bg-gray-200 p-2 mb-4">
-        <button
-          className={`mr-2 px-4 py-2 rounded ${
-            activeTab === "Open" ? "bg-blue-500 text-white" : "bg-gray-300"
-          }`}
-          onClick={() => handleTabChange("Open")}
-        >
-          Open
-        </button>
-        <button
-          className={`px-4 py-2 rounded ${
-            activeTab === "Resolved" ? "bg-blue-500 text-white" : "bg-gray-300"
-          }`}
-          onClick={() => handleTabChange("Resolved")}
-        >
-          Resolved
-        </button>
-      </div>
-
-      <div className="flex flex-col">
-        <div className="overflow-y-auto">
-          {activeTab === "Open" &&
-            openChats &&
-            openChats.map((chat) => (
-              <div 
-                key={chat.chatId} 
-                className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
-                
-                >
-                <div 
-                  className="flex flex-col" 
-                  >
-                  <span className="text-lg">{chat.chatSender?.service_name}</span>
-                  <p className="text-gray-600 text-sm mt-1">
-                    <span>{chat.chatSender?.name}:</span>
-                    {chat?.chatTitle.length > 20
-                      ? `${chat?.chatTitle.substring(0, 20)}...`
-                      : chat?.chatTitle}
-                  </p>
-                </div>
-                <button
-                  className="ml-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700"
-                  onClick={() => accept_req(chat.chatId)}
-                >
-                  Open
-                </button>
-              </div>
-            ))}
-          {activeTab === "Resolved" &&
-            resolvedChats &&
-            resolvedChats.map((chat) => (
-              <div 
-                key={chat.chatId} 
-                className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
-                onClick={()=> getResolvedMessages(chat.chatId)}
-                >
-                <div className="flex flex-col">
-                  <span className="text-lg">{chat.chatSender?.service_name}</span>
-                  <p className="text-gray-600 text-sm mt-1">
-                    <span>{chat.chatSender?.name}:</span>{" "}
-                    {chat?.chatTitle.length > 20
-                      ? `${chat?.chatTitle.substring(0, 20)}...`
-                      : chat?.chatTitle}
-                  </p>
-                </div>
-              
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="ml-2 h-6 w-6 text-green-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-            ))}
+          <div className="flex flex-col">
+        <div className="flex bg-gray-200 p-2 mb-4">
+          <button
+            className={`mr-2 px-4 py-2 rounded ${
+              activeTab === "Open" ? "bg-blue-500 text-white" : "bg-gray-300"
+            }`}
+            onClick={() => handleTabChange("Open")}
+          >
+            Open
+          </button>
+          <button
+            className={`px-4 py-2 rounded ${
+              activeTab === "Resolved" ? "bg-blue-500 text-white" : "bg-gray-300"
+            }`}
+            onClick={() => handleTabChange("Resolved")}
+          >
+            Resolved
+          </button>
         </div>
-      </div>
-    </div>
+
+        <div className="flex flex-col">
+          <div className="overflow-y-auto">
+            {activeTab === "Open" &&
+              openChats &&
+              openChats.map((chat) => (
+                <div 
+                  key={chat.chatId} 
+                  className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
+                  
+                  >
+                  <div 
+                    className="flex flex-col" 
+                    >
+                    <span className="text-lg">{chat.chatSender?.service_name}</span>
+                    <p className="text-gray-600 text-sm mt-1">
+                      <span>{chat.chatSender?.name}:</span>
+                      {chat?.chatTitle.length > 20
+                        ? `${chat?.chatTitle.substring(0, 20)}...`
+                        : chat?.chatTitle}
+                    </p>
+                  </div>
+                  <button
+                    className="ml-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700"
+                    onClick={() => accept_req(chat.chatId)}
+                  >
+                    Open
+                  </button>
+                </div>
+              ))}
+            {activeTab === "Resolved" &&
+              resolvedChats &&
+              resolvedChats.map((chat) => (
+                <div 
+                  key={chat.chatId} 
+                  className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
+                  onClick={()=> getResolvedMessages(chat.chatId)}
+                  >
+                  <div className="flex flex-col">
+                    <span className="text-lg">{chat.chatSender?.service_name}</span>
+                    <p className="text-gray-600 text-sm mt-1">
+                      <span>{chat.chatSender?.name}:</span>{" "}
+                      {chat?.chatTitle.length > 20
+                        ? `${chat?.chatTitle.substring(0, 20)}...`
+                        : chat?.chatTitle}
+                    </p>
+                  </div>
+                
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="ml-2 h-6 w-6 text-green-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+              ))}
+          </div>
+        </div>
+          </div>
         </Sidebar>
       </MainContainer>
     </main>
