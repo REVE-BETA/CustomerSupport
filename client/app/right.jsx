@@ -54,6 +54,9 @@ const UserListComponent = () => {
   };
 
   const accept_req = async (id) => {
+    if(!payload2.id){
+      return console.log('no id',payload2.id)
+    }
     try {
       const response = await axios.patch(
         `http://localhost:8000/chat/in-session`,
@@ -68,6 +71,7 @@ const UserListComponent = () => {
         }
       );
       ////////////////////////
+      console.log(payload2.id, 'iddd')
       const data = await axios.patch(
         `http://localhost:8000/message/update_messages_agent`,
         {
@@ -82,8 +86,9 @@ const UserListComponent = () => {
       );
       console.log(data,'msgsssss')
     } catch (error) {
-      console.error("Error changing it to in session:", error);
+      return("Error changing it to in session:", error);
     }
+
   };
 ///////////////////////////
   return (

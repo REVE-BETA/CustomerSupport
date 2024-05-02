@@ -148,6 +148,9 @@ export class MessageService {
   // }
   ///////////////////////////////////////////
   async update_messages_agent(createMessageDto: CreateMessageDto) {
+    if(!createMessageDto.agentId && !createMessageDto.chatId){
+      return {msg: 'fill all forms'}
+    }
     console.log('create dto', createMessageDto);
     try {
       const data = await this.messageRepository.query(

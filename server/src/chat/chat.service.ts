@@ -31,7 +31,7 @@ export class ChatService {
       );
       ///////
       if (Checking_If_The_req_Is_Open.length > 0) {
-        console.log(Checking_If_The_req_Is_Open);
+       // console.log(Checking_If_The_req_Is_Open);
         return {
           state: 1,// open found
           data: Checking_If_The_req_Is_Open,
