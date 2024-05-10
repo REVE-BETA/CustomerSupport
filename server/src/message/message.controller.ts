@@ -25,6 +25,10 @@ export class MessageController {
   get_resolved_messages(@Body() createMessageDto: CreateMessageDto){
     return this.messageService.get_resolved_messages(createMessageDto)
   }
+  @Post('count')
+  async count_unread_messages(@Body() createMessageDto: CreateMessageDto){
+    return this.messageService.count_unread_messages(createMessageDto)
+  }
 
   // @Get('findAll_for_customer')
   // findAll_for_customer(@Body() createMessageDto: CreateMessageDto) {

@@ -38,11 +38,12 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("Open");
   const [openChats, setOpenChats] = useState([]);
   const [resolvedChats, setResolvedChats] = useState([]);
-  const [isChatResolved, setIsChatResolved] = useState(false); // State variable to track if chat is resolved
+  const [isChatResolved, setIsChatResolved] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   ///////////////////////////////////
   const token = JSON.parse(localStorage.getItem("access_token"));
-  const { access_token } = token;
+  const { access_token } = token; 
 
   // const token = JSON.parse(localStorage.getItem("access_token"));
   const { payload2 } = token;
@@ -194,6 +195,7 @@ export default function Home() {
       set_active_customer(customer_id);
       await set_current_chat(chat.filter((c) => c.chatId === chatId)); // Await setting current chat
       set_Message_field_active(true);
+      setIsChatResolved(false)
 
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -258,7 +260,7 @@ export default function Home() {
       const chats = response.data; // Assuming response.data contains the chat array
   console.log(chats, "chats");
       // Sort chats based on chatCreatedAt in descending order (latest first)
-      const sortedChats = chats.sort((a, b) => {
+      const sortedChats = chats?.sort((a, b) => {
         const dateA = new Date(a.chatCreatedAt);
         const dateB = new Date(b.chatCreatedAt);
         return dateB.getTime() - dateA.getTime(); // Descending order
@@ -310,6 +312,18 @@ export default function Home() {
     SetMessage(datas)
     console.log(message, "messagesssss");
     setIsChatResolved(true);
+    set_Message_field_active(true)
+  }
+  ///////////////////
+  const countUnreadMessages = async (chatId) => {
+    const data = await axios.post(
+      "http://localhost:8000/message/count",
+      {
+        chatId
+      }
+    )
+    console.log((data));
+    setUnreadCounts(data.data)
   }
   ///////////////////
   const handleUnBlock = async () => {
@@ -321,8 +335,36 @@ export default function Home() {
   };
   ///////////////////
   useEffect(() => {
-    getChats();
+    getChats(); 
   }, []);
+  /////////////////
+  
+  /////////////////////
+  // const calculateUnreadCounts = () => {
+  //   const counts = {};
+  //   chat.forEach((chats) => {
+  //     const unreadCount = chats.messages.reduce((count, msg) => {
+  //       if (!msg.seen) {
+  //         return count + 1;
+  //       }
+  //       return count;
+  //     }, 0);
+  //     counts[chats.chatId] = unreadCount;
+  //   });
+  //   setUnreadCounts(counts);
+  // };
+  
+  // // Inside the useEffect that fetches chats
+  // useEffect(() => {
+  //   getChats();
+  //   calculateUnreadCounts();
+  // }, []);
+  
+  // // Update unread counts whenever messages are updated
+  // useEffect(() => {
+  //   calculateUnreadCounts();
+  // }, [message]);
+  
   ///////////////////
   return (
     <main>
@@ -354,14 +396,21 @@ export default function Home() {
                     } 
                     style={conversationAvatarStyle}
                   />
+                
+          
                   <Conversation.Content
+                    // onChange={()=> countUnreadMessages(chats.chatId)}
                     name={chats.chatSender.name}
-                    lastSenderName="Report"
+                    lastSenderName="Report" 
                     info={chats.chatTitle}
                     style={conversationContentStyle}
+                    // lastActivityTime="43 min"
+                    unreadCnt={3}
                   />
                 </Conversation>
-              ))}
+             
+                 )) }
+    
           </ConversationList>
         </Sidebar>
 
@@ -459,7 +508,7 @@ export default function Home() {
               
             )}
           </MessageList>
-          //active_customer
+          
           {  !isChatResolved ? (
             <MessageInput
               placeholder="Type message here"

@@ -6,7 +6,6 @@ import { CreateMessageDto } from './dto/create-message.dto';
 //import { Chat } from 'src/chat/entities/chat.entity';
 import { ChatService } from 'src/chat/chat.service';
 //import { error } from 'console';
-
 @Injectable()
 export class MessageService {
   constructor(
@@ -184,5 +183,44 @@ export class MessageService {
       return(`Failed to get message ${error.message}`)
     }
   }
+
+
+  async count_unread_messages(createMessageDto: CreateMessageDto): Promise<number> {
+    try {
+      const data = await this.messageRepository.query(
+        `SELECT COUNT(*) as count FROM MESSAGE
+        WHERE chatIdId = ? AND seen = true AND Customer_send = 1`,
+        [createMessageDto.chatId]
+      );
   
+      // Extract the count from the result
+      const count = data[0].count;
+  
+      return count;
+    } catch (error) {
+      console.error("Error counting unread messages:", error);
+      throw new Error("Error counting unread messages");
+    }
+  }
+  // async count_unread_messages(createMessageDto: CreateMessageDto) {
+  //   try{
+  //     let count = [];
+  //     const data = await this.messageRepository.query(
+  //       `SELECT * FROM MESSAGE
+  //       WHERE chatIdId = ? AND seen = ? 
+  //       AND Customer_send = ? `,
+  //       [createMessageDto.seen, createMessageDto.chatId, createMessageDto.Customer_send]
+  //     )
+
+  //     data.forEach((message) => {
+  //       if (message.customerSend === 1 && message.seen === 1) {
+  //         count++;
+  //       }
+  //     });
+  
+  //     return count;
+  //   }catch(error){
+  //     return(`error counting unread messages`)
+  //   }
+  // }
 }

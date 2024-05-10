@@ -10,5 +10,6 @@ export class CreateMessageDto {
      createdAt: Date;
      Customer_send:boolean;
      Agent_send:boolean;
-     chatId: Chat
+     chatId: Chat;
+     seen: boolean
 }
