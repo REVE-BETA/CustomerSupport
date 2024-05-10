@@ -121,10 +121,10 @@ export class MessageService {
     console.log(createMessageDto, 'get me msg')
     try {
       const messages = await this.messageRepository.query(
-        `SELECT * FROM message WHERE agentId = ? AND customerIdId = ? AND chatIdId = ?`,
+        `SELECT * FROM message WHERE chatIdId = ?`,
         [
-          createMessageDto.agentId,
-          createMessageDto.customer_id,
+          // createMessageDto.agentId,
+          // createMessageDto.customer_id,
           createMessageDto.chatId,
         ],
       );
@@ -170,6 +170,21 @@ export class MessageService {
     } catch (error) {
       console.error('Error updating messages:', error);
       throw new Error(`Failed to update messages: ${error.message}`);
+    }
+  }
+
+  async get_resolved_messages(createMessageDto: CreateMessageDto) {
+    try{
+      const resolvedMessages = await this.messageRepository.query(
+        `SELECT * FROM MESSAGE
+        WHERE chatIdId = ?`,
+        [createMessageDto.chatId]
+      )
+        console.log(resolvedMessages, "resolved message with specific chat id");
+        return resolvedMessages
+
+    }catch(error){
+      return(`Failed to get message ${error.message}`)
     }
   }
   

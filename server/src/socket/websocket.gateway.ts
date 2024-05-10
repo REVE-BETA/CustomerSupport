@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 
 interface user {
   id: string;
@@ -27,7 +27,7 @@ interface GroupedMessage extends JwtPayload {
 interface messaging extends user {
   socketId: string;
 }
-@Injectable()
+@Injectable({ scope: Scope.DEFAULT }) // Use Scope.DEFAULT
 @WebSocketGateway({ cors: '*' }) //OnGatewayInit
 export class WebSocketGateways
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -130,27 +130,11 @@ export class WebSocketGateways
     }
   }
   ////////////////////
-  @SubscribeMessage('notification')
-  handleNotification(client: Socket, payload: {message: any }) {
-    const { message } = payload;
+  @SubscribeMessage('openSession')
+  handleOpenSession(client: Socket, payload: {data: any,role: any }) {
+    const { data } = payload;
+    this.server.emit('openSession',data)
 
-    // Check if the sender exists in the clients map
-    if (this.messaging.has(message.N_receiver)) {
-      console.log(message, 'receiver');
-      // Retrieve the recipient's client object from the map
-      const recipientClient = this.messaging.get(message.N_receiver);
-      console.log(recipientClient, 'recipientClient');
-
-      // Emit the notification to the recipient's socket
-      if (recipientClient) {
-        this.server
-          .to(recipientClient.socketId)
-          .emit("Gnotification", message);
-      } else {
-        console.log(`Client with ID ${message.N_receiver} not found.`);
-      }
-    } else {
-      console.log(`Client with ID ${message.receiver} not found.`);
-    }
+   
   }
 }

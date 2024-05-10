@@ -8,6 +8,8 @@ import {
   Avatar,
   ConversationHeader,
   Sidebar,
+  ConversationList,
+  Conversation,
 } from "@chatscope/chat-ui-kit-react";
 import styles from "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,31 +22,28 @@ export default function Home() {
   const inputRef = useRef(null);
   const [msgInputValue, setMsgInputValue] = useState("");
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  // const [sidebarStyle, setSidebarStyle] = useState({});
   const [chatContainerStyle, setChatContainerStyle] = useState({});
-  // const [conversationContentStyle, setConversationContentStyle] = useState({});
-  //const [conversationAvatarStyle, setConversationAvatarStyle] = useState({});
+  const [conversationContentStyle, setConversationContentStyle] = useState({});
+  const [conversationAvatarStyle, setConversationAvatarStyle] = useState({});
   ///////////////////////////////////
   const [chat, setChat] = useState([]);
-  const [active_customer, set_active_customer] = useState("");
+  // const [active_customer, set_active_customer] = useState("");
   const [message, SetMessage] = useState([]);
   const [room, set_room] = useState();
   const [Agent_id, set_Agent_id] = useState();
   const [open_chat_message, set_open_chat_message] = useState();
   const [resolvedSessions, setResolvedSessions] = useState([]);
+  // const [getResolvedMessages, setGetResolvedMessages] = useState([]);
+  const [isChatResolved, setIsChatResolved] = useState(false); // State variable to track if chat is resolved
+  const [sidebarStyle, setSidebarStyle] = useState({});
 
   ///////////////////////////////////
+
   const token = JSON.parse(localStorage.getItem("access_token"));
   const { access_token } = token;
   let agent;
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
-
-  // const handleConversationClick = useCallback(() => {
-  //   if (sidebarVisible) {
-  //     setSidebarVisible(false);
-  //   }
-  // }, [sidebarVisible, setSidebarVisible]);
-
+  /////////////////
   const handleSend = async (messages) => {
     console.log(Agent_id, "agent");
     const formatted = {
@@ -53,10 +52,10 @@ export default function Home() {
       content: messages, ///
       Agent_send: false,
       Customer_send: true,
-      chatId: room
+      chatId: room,
     };
     try {
-      console.log(formatted, "fofoffofo")
+      // console.log(formatted, "fofoffofo");
       const { data } = await axios.post(
         "http://localhost:8000/message/send",
         formatted
@@ -68,7 +67,10 @@ export default function Home() {
         return;
       }
       socket.emit("sendMessage", { roomId: room, message: data[0] });
-      // SetMessage([...message, data[0]]); // Append the new message to the existing messages array
+      console.log(message, "testmsg");
+      if (message.length == 0) {
+        SetMessage([...message, data[0]]);
+      } // Append the new message to the existing messages array
     } catch (error) {
       console.error("Error:", error);
     }
@@ -77,7 +79,6 @@ export default function Home() {
     inputRef.current?.focus();
   };
   // /////////////////socket
-
   useEffect(() => {
     socket = io("http://localhost:8000/", {
       extraHeaders: {
@@ -93,8 +94,41 @@ export default function Home() {
       socket.off("message");
     };
   }, []);
-  //////////////////////
+  ////////////////////// style
+  useEffect(() => {
+    if (sidebarVisible) {
+      setSidebarStyle({
+        display: "flex",
+        flexBasis: "auto",
+        width: "100%",
+        maxWidth: "100%",
+      });
 
+      setConversationContentStyle({
+        display: "flex",
+      });
+
+      setConversationAvatarStyle({
+        marginRight: "1em",
+      });
+
+      setChatContainerStyle({
+        display: "none",
+      });
+    } else {
+      setSidebarStyle({});
+      setConversationContentStyle({});
+      setConversationAvatarStyle({});
+      setChatContainerStyle({});
+    }
+  }, [
+    sidebarVisible,
+    setSidebarVisible,
+    setConversationAvatarStyle,
+    setSidebarStyle,
+    setChatContainerStyle,
+  ]);
+  //////////////
   const getChats = async () => {
     try {
       const response = await axios.post(
@@ -103,7 +137,7 @@ export default function Home() {
           chat_sender: token.payload2.id, // Assuming chat_sender is the user ID
         }
       );
-     // console.log(response.data.length, "chat");
+      // console.log(response.data.length, "chat");
       if (response.data.length == 0) {
         // console.log( "chatuityu");
         /// if there is not in_session then try to find open session and diplay its message
@@ -113,7 +147,7 @@ export default function Home() {
             chat_sender: token.payload2.id, // Assuming chat_sender is the user ID
           }
         );
-      //  console.log(response.data, "open chat");
+        //  console.log(response.data, "open chat");
         if (response.data[0].length == 0) {
           return [];
         }
@@ -132,12 +166,10 @@ export default function Home() {
         const data = await axios.post(
           "http://localhost:8000/message/findAll_for_sender",
           {
-            agentId: agent,
-            customer_id: token.payload2.id,
-            chatId : response.data[0].id
+            chatId: response.data[0].id,
           }
         );
-        console.log(data, 'get me msg', room)
+        console.log(data, "get me msg", room);
         if (!data.data) {
           return [];
         }
@@ -149,19 +181,28 @@ export default function Home() {
       console.error("Error fetching chat data:", error);
     }
   };
-
-  /////////////////
-  const Getmessages = async () => {
-    // console.log(agent, 'agent');
-    // console.log(chat,"caht")
-
-  };
   ////////////////
-
+  const getAllResolvedMessages = async (chatId) => {
+    if (sidebarVisible) {
+      setSidebarVisible(false);
+    }
+    const response = await axios.post(
+      "http://localhost:8000/message/get-resolved-messages",
+      { chatId: chatId }
+    );
+    console.log(chatId, "iddd");
+    const resmessages = response.data;
+    console.log(resmessages, "resolved messages list");
+    console.log(response.data, "dataaaa");
+    SetMessage(response.data);
+    setIsChatResolved(true);
+    // setGetResolvedMessages((prev) => [...prevmsg, data.data])
+  };
+  ///////////////////////get chats and message
   useEffect(() => {
     const fetchData = async () => {
       try {
-        getChats()//.then(() => Getmessages()); // Fetch chat data first
+        getChats(); //.then(() => Getmessages()); // Fetch chat data first
       } catch (error) {
         console.error("Error fetching chat data:", error);
       }
@@ -177,13 +218,13 @@ export default function Home() {
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiZW1haWwiOiJ5ZW51LkAiLCJyb2xlIjoidXNlciIsImlhdCI6MTcxNDA5OTM5OCwiZXhwIjoxNzE5MjgzMzk4fQ.QhHTns8YKlrLbWzK32F9WlNLh8gjmvXuUsSGXepIeIo",
       payload2: {
         id: 3,
-        email: "client_1.@",
+        email: "c3.@",
       },
     });
 
     localStorage.setItem("access_token", accessTokenString);
   };
-  //////////////////////
+  //////////////////////get resolved chats
   useEffect(() => {
     const fetchResolvedSessions = async () => {
       try {
@@ -206,7 +247,11 @@ export default function Home() {
 
     fetchResolvedSessions();
   }, []); // Empty dependency array to fetch data only once on component mount
-  /////////////////////
+  ///////////////////// when active chat is clicked
+  const active_chat = () => {
+    getChats();
+    setIsChatResolved(false);
+  };
   return (
     <main>
       <MainContainer
@@ -215,8 +260,63 @@ export default function Home() {
           height: "100vh",
         }}
       >
+        <Sidebar position="right" style={sidebarStyle}>
+          <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+            Resolved Chats
+          </button>
+          <ConversationList>
+            <div className="bg-white rounded-lg shadow-md px-4 py-4">
+              <div className="flex flex-col space-y-2 ">
+                {resolvedSessions &&
+                  resolvedSessions.map((session) => (
+                    <Conversation
+                      onClick={() => getAllResolvedMessages(session.id)}
+                    >
+                      <Conversation.Content
+                        name={session.session}
+                        lastSenderName="Report"
+                        info={session.Title}
+                        style={conversationContentStyle}
+                      />
+                    </Conversation>
+                    //  <div
+                    //    key={session.id}
+                    //    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-green-100 cursor-pointer"
+                    //    onClick={() => getAllResolvedMessages(session.id)}
+                    //  >
+                    //    <div className="flex flex-col">
+                    //      <p className="text-lg font-medium text-gray-700">
+                    //        {session.Title}
+                    //      </p>{" "}
+                    //      {/* Assuming session object has a `name` property */}
+                    //      <p className="text-sm text-gray-500">
+                    //        Session: {session.session}
+                    //      </p>{" "}
+                    //      {/* Assuming session object has an `id` property */}
+                    //    </div>
+                    //    <svg
+                    //      xmlns="http://www.w3.org/2000/svg"
+                    //      className="ml-2 h-6 w-6 text-green-500"
+                    //      fill="none"
+                    //      viewBox="0 0 24 24"
+                    //      stroke="currentColor"
+                    //    >
+                    //      <path
+                    //        strokeLinecap="round"
+                    //        strokeLinejoin="round"
+                    //        strokeWidth={2}
+                    //        d="M5 13l4 4L19 7"
+                    //      />
+                    //    </svg>
+                    //  </div>
+                  ))}
+              </div>
+            </div>
+          </ConversationList>
+        </Sidebar>
         <ChatContainer style={chatContainerStyle}>
           <ConversationHeader>
+            <ConversationHeader.Back onClick={handleBackClick} />
             <ConversationHeader.Content>
               <span
                 style={{
@@ -227,8 +327,14 @@ export default function Home() {
                 }}
               >
                 Welcome to our customer support
-                {/* <button onClick={()=>login()}>login</button> */}
+                {/* <button onClick={()=>login()}>loginNN</button> */}
               </span>
+              <button
+                onClick={() => active_chat()}
+                class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+              >
+                Set Active Chat
+              </button>
             </ConversationHeader.Content>
           </ConversationHeader>
 
@@ -264,7 +370,7 @@ export default function Home() {
               ))}
           </MessageList>
 
-          {
+          {!isChatResolved && (
             <MessageInput
               placeholder="Type message here"
               onSend={handleSend}
@@ -272,50 +378,8 @@ export default function Home() {
               value={msgInputValue}
               ref={inputRef}
             />
-          }
+          )}
         </ChatContainer>
-        <Sidebar position="right">
-          <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
-            Resolved Chats
-          </button>
-          <div className="bg-white rounded-lg shadow-md px-4 py-4">
-             <div className="flex flex-col space-y-2">
-              {resolvedSessions &&
-                resolvedSessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-green-100 cursor-pointer"
-                    onClick={() => console.log("clicked")}
-                  >
-                    <div className="flex flex-col">
-                      <p className="text-lg font-medium text-gray-700">
-                        {session.Title}
-                      </p>{" "}
-                      {/* Assuming session object has a `name` property */}
-                      <p className="text-sm text-gray-500">
-                        Session: {session.session}
-                      </p>{" "}
-                      {/* Assuming session object has an `id` property */}
-                    </div>
-                    <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="ml-2 h-6 w-6 text-green-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </Sidebar>
       </MainContainer>
     </main>
   );
