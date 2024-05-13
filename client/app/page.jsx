@@ -55,6 +55,7 @@ export default function Home() {
           Authorization: `Bearer ${token.access_token}`,
         },
       });
+     // console.log(response.data, 'open chats')
       setOpenChats(response.data);
     } catch (error) {
       console.error("Error fetching open chats:", error);
@@ -97,7 +98,7 @@ export default function Home() {
       const response = await axios.patch(
         `http://localhost:8000/chat/in-session`,
         {
-          chat_receiver: 3, //payload2.id,
+          chat_receiver: payload2.id,
           chatId: id,
         },
         {
@@ -106,12 +107,7 @@ export default function Home() {
           },
         }
       );
-     if(response.ok){
-      console.log('emeting open')
-      socket.emit("openSession", { role:'agent', data: response.data[0] });
-     }
-
-      console.log(response,'chatsss')
+     console.log(response,'chatsss')
 
       ////////////////////////
       const data = await axios.patch(
@@ -126,22 +122,20 @@ export default function Home() {
           },
         }
       );
-      const fillterd = openChats.filter((e)=>e.chatId !== id)
-      setOpenChats(fillterd)
       const filterd_active_chat = openChats.filter((e)=>e.chatId == id)
       setChat(...chat,filterd_active_chat )
     } catch (error) {
       console.error("Error changing it to in session:", error);
     }
   };
-  /////////////////////////
+  ///////////////////////// socket
   useEffect(() => {
     socket = io("http://localhost:8000/", {
       extraHeaders: {
         Authorization: `Bearer ${access_token}`,
       },
     });
-    socket.on("message", (messages) => {
+    socket.on("Message", (messages) => {
       console.log(messages,"socket_msg")
       SetMessage((prevmsg)=>[...prevmsg, messages])
       console.log(messages, "socket")
@@ -149,13 +143,24 @@ export default function Home() {
     });
     socket.on("openSession", (sessions) => {
     //  console.log(messages,"socket_msg")
-     console.log(sessions, "socket_open_chat")
-      setChat((prevchat)=>[...prevchat, sessions])
+    // console.log(sessions, "socket_open_chat")
+      setOpenChats((prevchat)=>[...prevchat, sessions])
      
       //setMessages((prevMessages) => [...prevMessages, message]);
     });
+    //////////
+    socket.on("Insession", (sessions) => {
+      //  console.log(messages,"socket_msg")
+       console.log(sessions.id, "socket_insession_chat")
+       const filter_sessioned_req = openChats.filter((chat)=>chat.chatId !== sessions.id)
+       setOpenChats(filter_sessioned_req)
+       
+        //setMessages((prevMessages) => [...prevMessages, message]);
+      });
     return () => {
-      socket.off("message");
+      socket.off("Message");
+      socket.off("openSession");
+      socket.off("Insession")
     };
   }, []);
   //////////////////////////
@@ -215,7 +220,7 @@ export default function Home() {
       console.error("Error fetching messages:", error);
     }
   };
-  //////////////////////////
+  //////////////////////////style
   useEffect(() => {
     if (sidebarVisible) {
       setSidebarStyle({
@@ -337,7 +342,7 @@ export default function Home() {
     );
     console.log(response, "unblocked");
   };
-  ///////////////////
+  ///////////////////getChats
   useEffect(() => {
     getChats();
   }, []);
@@ -363,6 +368,7 @@ export default function Home() {
                       chats.chatId
                     )
                   }
+                  unreadCnt={3}
                 >
                   <Avatar
                     src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"

@@ -1,0 +1,38 @@
+  @SubscribeMessage('sendMessage')
+  handleSendMessage(client: Socket, payload: { roomId: string; message: any }) {
+    const { roomId } = payload;
+    console.log(
+      `Sending message "${payload.message.content}" to room ${roomId}`,
+    );
+
+    // Emit the message to all clients in the specified room
+    this.server.to(roomId).emit('message', payload.message);
+  }
+  @SubscribeMessage('joinRoom')
+  handleJoinRoom(client: Socket, chatId: string) {
+    console.log(`Client ${client.id} joining room ${chatId}`);
+    client.join(chatId); // Join the room specified by c_id
+  }
+  async emitStateToGroup(state: any, role: string) {
+    const sockets = this.socketMapGroup.get(role) || [];
+
+    sockets.forEach(socketMeta => {
+      this.server.to(socketMeta.socketId).emit('session', state);
+    });
+
+    if (sockets.length === 0) {
+      console.log(`No ${role} users online at the moment!`);
+    }
+  }
+    ////////////////////
+    @SubscribeMessage('openSession')
+    handleOpenSession(client: Socket, payload: {data: any,role: any }) {
+      const { data } = payload;
+      this.server.emit('openSession',data)
+  
+     
+    }
+    
+  afterInit(server: Server) {
+    console.log('WebSocket Gateway initialized');
+  }

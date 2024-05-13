@@ -66,7 +66,7 @@ export default function Home() {
         inputRef.current?.focus();
         return;
       }
-      socket.emit("sendMessage", { roomId: room, message: data[0] });
+     // socket.emit("sendMessage", { roomId: room, message: data[0] });
       console.log(message, "testmsg");
       if (message.length == 0) {
         SetMessage([...message, data[0]]);
@@ -85,7 +85,7 @@ export default function Home() {
         Authorization: `Bearer ${access_token}`,
       },
     });
-    socket.on("message", (messages) => {
+    socket.on("Message", (messages) => {
       console.log(messages, "socket_msg");
       SetMessage((prevmsg) => [...prevmsg, messages]);
       //setMessages((prevMessages) => [...prevMessages, message]);
@@ -215,10 +215,10 @@ export default function Home() {
   const login = () => {
     const accessTokenString = JSON.stringify({
       access_token:
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiZW1haWwiOiJ5ZW51LkAiLCJyb2xlIjoidXNlciIsImlhdCI6MTcxNDA5OTM5OCwiZXhwIjoxNzE5MjgzMzk4fQ.QhHTns8YKlrLbWzK32F9WlNLh8gjmvXuUsSGXepIeIo",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJjMS5AIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3MTU1OTM0MzgsImV4cCI6MTcyMDc3NzQzOH0.1erlF4rpQr7KeX3tluXx357gmmzQpLmQXPqt0BTWkvA",
       payload2: {
-        id: 3,
-        email: "c3.@",
+        id: 1,
+        email: "c1.@",
       },
     });
 
@@ -249,8 +249,10 @@ export default function Home() {
   }, []); // Empty dependency array to fetch data only once on component mount
   ///////////////////// when active chat is clicked
   const active_chat = () => {
+    SetMessage([])
     getChats();
     setIsChatResolved(false);
+
   };
   return (
     <main>
@@ -327,7 +329,7 @@ export default function Home() {
                 }}
               >
                 Welcome to our customer support
-                {/* <button onClick={()=>login()}>loginNN</button> */}
+                <button onClick={() => login()}>loginNN</button>
               </span>
               <button
                 onClick={() => active_chat()}

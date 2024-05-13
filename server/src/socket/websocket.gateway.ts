@@ -96,45 +96,73 @@ export class WebSocketGateways
       this.socketMapGroup.set(key, updatedGroup);
     });
   }
-
-  afterInit(server: Server) {
-    console.log('WebSocket Gateway initialized');
-  }
-
-  @SubscribeMessage('joinRoom')
-  handleJoinRoom(client: Socket, chatId: string) {
-    console.log(`Client ${client.id} joining room ${chatId}`);
-    client.join(chatId); // Join the room specified by c_id
-  }
-
-  @SubscribeMessage('sendMessage')
-  handleSendMessage(client: Socket, payload: { roomId: string; message: any }) {
-    const { roomId } = payload;
-    console.log(
-      `Sending message "${payload.message.content}" to room ${roomId}`,
-    );
-
-    // Emit the message to all clients in the specified room
-    this.server.to(roomId).emit('message', payload.message);
-  }
   ///////////////////
-  async emitStateToGroup(state: any, role: string) {
-    const sockets = this.socketMapGroup.get(role) || [];
+  handleSendMessages(data: any) {
+   // console.log(data, "full data")
+    // Extract necessary data from the 'data' parameter
+    const { agentId,  customerIdId, content, chatId, Agent_send, Customer_send } = data[0];
+  
+    // Emit message to the customer
+    const customer = this.messaging.get(customerIdId);
+    // console.log(customerIdId, "cid")
+    // console.log(this.messaging, "messageing")
+    // console.log(customer, 'customer')
+
+    if (customer) {
+     // console.log(customer, 'customer')
+      this.server.to(customer.socketId).emit('Message', {
+        agentId,
+        customerIdId,
+        content,
+        chatId,
+        Agent_send,
+        Customer_send,
+      });
+    }
+  
+    // Emit message to the agent
+    const agent = this.messaging.get(agentId);
+    //console.log(agent, 'agent')
+
+    if (agent) {
+     // console.log(agent, "agent")
+      this.server.to(agent.socketId).emit('Message', {
+        agentId,
+        customerIdId,
+        content,
+        chatId,
+        Agent_send,
+        Customer_send,
+      });
+    }
+  }
+  //////////////////
+  handleOpenSession(data: any){
+   // console.log(data[0], 'full data')
+   // console.log(this.socketMapGroup, "group")
+    const sockets = this.socketMapGroup.get('agent') || [];
 
     sockets.forEach(socketMeta => {
-      this.server.to(socketMeta.socketId).emit('session', state);
+      this.server.to(socketMeta.socketId).emit('openSession', data[0]);
     });
 
     if (sockets.length === 0) {
-      console.log(`No ${role} users online at the moment!`);
+      console.log(`No agent users online at the moment!`);
     }
   }
-  ////////////////////
-  @SubscribeMessage('openSession')
-  handleOpenSession(client: Socket, payload: {data: any,role: any }) {
-    const { data } = payload;
-    this.server.emit('openSession',data)
+  /////////////////
+  handleINSession(data: any){
+    //console.log(data, 'full data')
+//console.log(this.socketMapGroup, "group")
+    const sockets = this.socketMapGroup.get('agent') || [];
 
-   
+    sockets.forEach(socketMeta => {
+      this.server.to(socketMeta.socketId).emit('Insession', data);
+    });
+
+    if (sockets.length === 0) {
+      console.log(`No agent users online at the moment!`);
+    }
   }
+   //////////////////
 }

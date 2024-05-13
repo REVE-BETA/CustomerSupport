@@ -7,14 +7,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Chat, SessionStatus } from './entities/chat.entity';
 import { CreateChatDto } from './dto/create-chat.dto';
-//import { WebSocketGateways } from 'src/socket/websocket.gateway';
+import { WebSocketGateways } from 'src/socket/websocket.gateway';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectRepository(Chat)
     private readonly chatRepository: Repository<Chat>,
-    //private readonly socket: WebSocketGateways
+    private readonly socket: WebSocketGateways,
     //private socket : WebSocketGateways
   ) {}
   ///////////////////// this metod is called in messages service
@@ -31,9 +31,9 @@ export class ChatService {
       );
       ///////
       if (Checking_If_The_req_Is_Open.length > 0) {
-       // console.log(Checking_If_The_req_Is_Open);
+        // console.log(Checking_If_The_req_Is_Open);
         return {
-          state: 1,// open found
+          state: 1, // open found
           data: Checking_If_The_req_Is_Open,
           chatID: Checking_If_The_req_Is_Open[0].id,
         };
@@ -69,11 +69,34 @@ export class ChatService {
             `SELECT * FROM chat WHERE id = ?`,
             [newChat.identifiers[0].id], // Assuming the inserted ID is available in identifiers
           );
-
+          const insertedMessage_for_notif = await this.chatRepository.query(
+            `
+          SELECT
+            chat.id AS chatId,
+            chat.Title AS chatTitle,
+            chat.session AS chatSession,
+            chat.createdAt AS chatCreatedAt,
+            chat.chatSenderId AS chatSenderId,
+            chat.chatReceiverId AS chatReceiverId,
+            JSON_OBJECT(
+              'id', customer.id,
+              'email', customer.email,
+              'phone', customer.phone,
+              'service_name', customer.service_name,
+              'name', customer.name,
+              'isBlocked', customer.isBlocked
+            ) AS chatSender
+          FROM chat
+          INNER JOIN customer ON chat.chatSenderId = customer.id
+          WHERE chat.id = ?
+        `,
+            [newChat.identifiers[0].id],
+          );
           if (insertedMessage) {
-           // console.log(insertedMessage, "new tat")
+            this.socket.handleOpenSession(insertedMessage_for_notif);
+            console.log(insertedMessage, 'new tat');
             return {
-              state: 2,//new or resolved found and create new chat
+              state: 2, //new or resolved found and create new chat
               data: insertedMessage,
               chatID: insertedMessage[0].id,
             };
@@ -313,18 +336,28 @@ export class ChatService {
   }
   /////////////////////
   async setSessionToInSession(createChatDto: CreateChatDto) {
-    console.log(createChatDto);
-    const chat = await this.chatRepository.findOne({
-      where: { id: createChatDto.chatId },
-    });
-    if (!chat) {
-      throw new NotFoundException('Chat not found');
-    }
-    chat.session = SessionStatus.IN_SESSION;
-    chat.chat_receiver = createChatDto.chat_receiver;
-    //this.socket.emitStateToGroup(chat, 'agent')
+    // console.log(createChatDto);
+    try {
+      const chat = await this.chatRepository.findOne({
+        where: { id: createChatDto.chatId },
+      });
+      if (!chat) {
+        throw new NotFoundException('Chat not found');
+      }
+      chat.session = SessionStatus.IN_SESSION;
+      chat.chat_receiver = createChatDto.chat_receiver;
+      //this.socket.emitStateToGroup(chat, 'agent')
 
-    return this.chatRepository.save(chat);
+      const data =await this.chatRepository.save(chat);
+      if (!data) {
+        throw new Error('something went wrong');
+      }
+      console.log(data, "insession data")
+      this.socket.handleINSession(data)
+      return data;
+    } catch (error) {
+      return error.message;
+    }
   }
   //////////////////
   async createCustomer(createChatDto: CreateChatDto) {
@@ -406,5 +439,4 @@ export class ChatService {
     }
     /// code left
   }
-
 }

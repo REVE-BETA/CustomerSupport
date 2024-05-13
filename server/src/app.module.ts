@@ -28,8 +28,7 @@ import { WebSocketGateways } from './socket/websocket.gateway';
     AgentModule,
     CustomersModule,
     AuthModule
-  
-  ],
+    ],
   controllers: [],
   providers: [WebSocketGateways],
   exports: [],

@@ -6,12 +6,16 @@ import { CreateMessageDto } from './dto/create-message.dto';
 //import { Chat } from 'src/chat/entities/chat.entity';
 import { ChatService } from 'src/chat/chat.service';
 //import { error } from 'console';
+import { WebSocketGateways } from 'src/socket/websocket.gateway';
 
 @Injectable()
 export class MessageService {
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
+    private readonly webSocket : WebSocketGateways,
+    // @InjectRepository(Chat)
+    // private readonly ChatRepository: Repository<Message>,
     private readonly Chatservice: ChatService,
   ) {}
 
@@ -105,6 +109,8 @@ export class MessageService {
         // Fetch the inserted message from the database using the insertId as the condition
         // const insertedMessage = await this.messageRepository.findOne(result.insertId);
         if (insertedMessage) {
+          this.webSocket.handleSendMessages(insertedMessage)
+         // console.log(insertedMessage, 'insertedMessage')
           return insertedMessage;
         } else {
           throw new Error(`Failed to retrieve inserted message`);
@@ -118,7 +124,7 @@ export class MessageService {
   }
   ///////////////////////////////////////////
   async findAll_for_sender(createMessageDto: CreateMessageDto) {
-    console.log(createMessageDto, 'get me msg')
+   // console.log(createMessageDto, 'get me msg')
     try {
       const messages = await this.messageRepository.query(
         `SELECT * FROM message WHERE chatIdId = ?`,
@@ -151,7 +157,7 @@ export class MessageService {
     if(!createMessageDto.agentId && !createMessageDto.chatId){
       return {msg: 'fill all forms'}
     }
-    console.log('create dto', createMessageDto);
+   // console.log('create dto', createMessageDto);
     try {
       const data = await this.messageRepository.query(
         `
@@ -162,7 +168,7 @@ export class MessageService {
         [createMessageDto.agentId, createMessageDto.chatId],
       );
       if (data) {
-        console.log(data, 'updated message');
+       // console.log(data, 'updated message');
         return data;
       } else {
         throw new Error('Something went wrong on updating message');
@@ -180,7 +186,7 @@ export class MessageService {
         WHERE chatIdId = ?`,
         [createMessageDto.chatId]
       )
-        console.log(resolvedMessages, "resolved message with specific chat id");
+       // console.log(resolvedMessages, "resolved message with specific chat id");
         return resolvedMessages
 
     }catch(error){
