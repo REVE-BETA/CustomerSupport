@@ -25,6 +25,7 @@ export class MessageService {
         Agent_send,
         Customer_send,
         chatId,
+        seen,
       } = createMessageDto;
       //////////////////////
       if (!content && !customer_id) {
@@ -45,8 +46,8 @@ export class MessageService {
           if (data.state == 1) {
             // create msg hear
             const result = await this.messageRepository.query(
-              `INSERT INTO message (content, customerIdId, Agent_send, Customer_send, chatIdId) VALUES (?, ?, ?, ?, ?)`,
-              [content, customer_id, Agent_send, Customer_send, data.chatID],
+              `INSERT INTO message (content, customerIdId, Agent_send, Customer_send, seen, chatIdId) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [content, customer_id, Agent_send, seen, Customer_send, data.chatID],
             );
             // Check if the insertion was successful
             if (result.affectedRows === 1) {
@@ -127,6 +128,18 @@ export class MessageService {
           createMessageDto.chatId,
         ],
       );
+      if (messages.length > 0) {
+        // Constructing an array of message IDs to be used in the update query
+        const messageIds = messages.map(message => message.id);
+    
+        // Updating the seen attribute for the selected messages
+        await this.messageRepository.query(
+            `UPDATE message SET seen = 1 WHERE id IN (?)`,
+            [messageIds],
+        );
+      }
+      console.log(messages, "messages");
+      
       return messages;
     } catch (error) {
       // Handle any errors (e.g., database errors)
@@ -202,25 +215,4 @@ export class MessageService {
       throw new Error("Error counting unread messages");
     }
   }
-  // async count_unread_messages(createMessageDto: CreateMessageDto) {
-  //   try{
-  //     let count = [];
-  //     const data = await this.messageRepository.query(
-  //       `SELECT * FROM MESSAGE
-  //       WHERE chatIdId = ? AND seen = ? 
-  //       AND Customer_send = ? `,
-  //       [createMessageDto.seen, createMessageDto.chatId, createMessageDto.Customer_send]
-  //     )
-
-  //     data.forEach((message) => {
-  //       if (message.customerSend === 1 && message.seen === 1) {
-  //         count++;
-  //       }
-  //     });
-  
-  //     return count;
-  //   }catch(error){
-  //     return(`error counting unread messages`)
-  //   }
-  // }
 }

@@ -155,25 +155,30 @@ export class ChatService {
 
       const customers = await this.chatRepository.query(
         `
-      SELECT
-        chat.id AS chatId,
-        chat.Title AS chatTitle,
-        chat.session AS chatSession,
-        chat.createdAt AS chatCreatedAt,
-        chat.chatSenderId AS chatSenderId,
-        chat.chatReceiverId AS chatReceiverId,
-        JSON_OBJECT(
-          'id', customer.id,
-          'email', customer.email,
-          'phone', customer.phone,
-          'service_name', customer.service_name,
-          'name', customer.name,
-          'isBlocked', customer.isBlocked
-        ) AS chatSender
-      FROM chat
-      INNER JOIN customer ON chat.chatSenderId = customer.id
-      WHERE chat.chatReceiverId = ?
-      AND chat.session != ?
+        SELECT
+          chat.id AS chatId,
+          chat.Title AS chatTitle,
+          chat.session AS chatSession,
+          chat.createdAt AS chatCreatedAt,
+          chat.chatSenderId AS chatSenderId,
+          chat.chatReceiverId AS chatReceiverId,
+          COUNT(CASE WHEN message.seen = 0 AND message.Customer_send = 1 THEN 1 END) AS unreadCount,
+          JSON_OBJECT(
+              'id', customer.id,
+              'email', customer.email,
+              'phone', customer.phone,
+              'service_name', customer.service_name,
+              'name', customer.name,
+              'isBlocked', customer.isBlocked
+          ) AS chatSender,
+          SUM(CASE WHEN message.seen = 0 AND message.Customer_send = 1 THEN 1 ELSE 0 END) AS unreadMessages
+          FROM chat
+          INNER JOIN customer ON chat.chatSenderId = customer.id
+          LEFT JOIN message ON message.chatIdId = chat.id
+          WHERE chat.chatReceiverId = ?
+          AND chat.session != ?
+          GROUP BY chat.id, customer.id
+      
     `,
         [createChatDto.chat_receiver, SessionStatus.RESOLVED],
       );

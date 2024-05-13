@@ -56,8 +56,10 @@ export default function Home() {
       content: messages, ///
       Agent_send: false,
       Customer_send: true,
-      chatId: room
+      chatId: room,
+      seen: false
     };
+    console.log(formatted, "formatted");
     try {
       console.log(formatted, "fofoffofo")
       const { data } = await axios.post(
@@ -271,6 +273,7 @@ export default function Home() {
                     position: "single",
                     sender: "Zoe",
                     sentTime: msg.createdAt,
+                    seen: msg.seen
                   }}
                 >
                   <Avatar

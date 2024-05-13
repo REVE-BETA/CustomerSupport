@@ -147,7 +147,7 @@ export default function Home() {
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
   ///////////////////////
   const handleSend = async (messages) => {
-   // console.log(token.payload2.id,"sendmsg")
+   console.log(token.payload2.id,"sendmsg")
     const formatted = {
       agentId: token.payload2.id,
       customer_id: active_customer,
@@ -155,8 +155,10 @@ export default function Home() {
       chatId:Chat_room,
       Agent_send: true,
       Customer_send: false,
+      seen: false
+    
     };
-
+console.log(formatted, "formatted");
     try {
       console.log(formatted, 'formated')
       const { data } = await axios.post(
@@ -256,23 +258,23 @@ export default function Home() {
         }
       );
       console.log(response, "response");
-  
+      // console.log(msg, "messagessss");
       const chats = response.data; // Assuming response.data contains the chat array
-  console.log(chats, "chats");
+      console.log(chats, "chats");
       // Sort chats based on chatCreatedAt in descending order (latest first)
       const sortedChats = chats?.sort((a, b) => {
         const dateA = new Date(a.chatCreatedAt);
         const dateB = new Date(b.chatCreatedAt);
         return dateB.getTime() - dateA.getTime(); // Descending order
       });
-  
+ 
       // Filter resolved chats (assuming "resolved" is the value)
       const resolvedChats = sortedChats.filter((chat) => chat.chatSession === "resolved");
       const unresolvedChats = sortedChats.filter((chat) => chat.chatSession !== "resolved");
   
       // Combine chats in desired order: unresolved first, then resolved
       const combinedChats = [...unresolvedChats, ...resolvedChats];
-  
+      // console.log(combinedChats, "ccccccccc");
       // Update chat state
       setChat(combinedChats);
     } catch (error) {
@@ -386,7 +388,9 @@ export default function Home() {
                       chats.chatSenderId,
                       chats.chatId
                     )
+                    
                   }
+                  unreadCnt={chats.unreadCount}
                 >
                   <Avatar
                     src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"
@@ -405,7 +409,7 @@ export default function Home() {
                     info={chats.chatTitle}
                     style={conversationContentStyle}
                     // lastActivityTime="43 min"
-                    unreadCnt={3}
+                    
                   />
                 </Conversation>
              
