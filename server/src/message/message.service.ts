@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
@@ -34,6 +34,22 @@ export class MessageService {
       //////////////////////
       if (!content && !customer_id) {
         return { msg: 'all filds must be filled' };
+      }
+      //////////////////////
+      const check_isUser_blocked = await this.messageRepository.query(
+        `
+        SELECT * FROM customer
+        WHERE id = ?
+        `,[ customer_id,]
+      )
+      if(check_isUser_blocked.length > 0){
+        if(check_isUser_blocked[0].isBlocked){
+          return {msg : 'user is blocked'}
+        }
+        //console.log(check_isUser_blocked, 'ckkkk')
+      }
+      else{
+        return {msg : 'no user is found with that id '}
       }
       /////////////////////
       // this function will check if the chat is resolced or not if so it will create new chat
@@ -110,7 +126,9 @@ export class MessageService {
         // const insertedMessage = await this.messageRepository.findOne(result.insertId);
         if (insertedMessage) {
           this.webSocket.handleSendMessages(insertedMessage)
-         // console.log(insertedMessage, 'insertedMessage')
+          this.webSocket.handleSendNotification(insertedMessage)
+
+         console.log(insertedMessage, 'insertedMessage')
           return insertedMessage;
         } else {
           throw new Error(`Failed to retrieve inserted message`);
@@ -193,5 +211,18 @@ export class MessageService {
       return(`Failed to get message ${error.message}`)
     }
   }
-  
+  //////////////////////////////////////////
+  async markMessagesAsSeen(createMessageDto:CreateMessageDto) {
+    try {
+      await this.messageRepository.query(
+        `UPDATE message
+         SET seen = 1
+         WHERE chatIdId = ? AND Customer_send = 1 AND seen = 0`,
+        [createMessageDto.chatID]
+      );
+      return {chatId : createMessageDto.chatID};
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to mark messages as seen');
+    }
+  }
 }

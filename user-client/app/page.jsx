@@ -27,13 +27,11 @@ export default function Home() {
   const [conversationAvatarStyle, setConversationAvatarStyle] = useState({});
   ///////////////////////////////////
   const [chat, setChat] = useState([]);
-  // const [active_customer, set_active_customer] = useState("");
   const [message, SetMessage] = useState([]);
   const [room, set_room] = useState();
   const [Agent_id, set_Agent_id] = useState();
   const [open_chat_message, set_open_chat_message] = useState();
   const [resolvedSessions, setResolvedSessions] = useState([]);
-  // const [getResolvedMessages, setGetResolvedMessages] = useState([]);
   const [isChatResolved, setIsChatResolved] = useState(false); // State variable to track if chat is resolved
   const [sidebarStyle, setSidebarStyle] = useState({});
 
@@ -66,11 +64,11 @@ export default function Home() {
         inputRef.current?.focus();
         return;
       }
-     // socket.emit("sendMessage", { roomId: room, message: data[0] });
+      // socket.emit("sendMessage", { roomId: room, message: data[0] });
       console.log(message, "testmsg");
-      if (message.length == 0) {
+      //if (message.length == 0) {
         SetMessage([...message, data[0]]);
-      } // Append the new message to the existing messages array
+     // } // Append the new message to the existing messages array
     } catch (error) {
       console.error("Error:", error);
     }
@@ -85,11 +83,27 @@ export default function Home() {
         Authorization: `Bearer ${access_token}`,
       },
     });
+    ////////////////////
     socket.on("Message", (messages) => {
       console.log(messages, "socket_msg");
+      //console.log(messages, "socket_msg");
+
+      set_Agent_id(messages.agentId)/* this is for debugging when the socket session is resolved 
+      and the message sending is not awair of it then we set the agent id*/
+      set_room(messages.chatIdId)// this to if the msg is resolved we have to change the chat id and the agent id on the first msg
       SetMessage((prevmsg) => [...prevmsg, messages]);
-      //setMessages((prevMessages) => [...prevMessages, message]);
+
     });
+    //////////////////
+    socket.on("resolved", (messages) => {
+      if (messages.session == "resolved") {
+        SetMessage([]);
+       // set_room(null)
+        set_Agent_id(null)
+      }
+      
+    });
+
     return () => {
       socket.off("message");
     };
@@ -137,9 +151,9 @@ export default function Home() {
           chat_sender: token.payload2.id, // Assuming chat_sender is the user ID
         }
       );
-      // console.log(response.data.length, "chat");
+  // if there is open chat then get that
       if (response.data.length == 0) {
-        // console.log( "chatuityu");
+        //  console.log( "chatuityu");
         /// if there is not in_session then try to find open session and diplay its message
         const response = await axios.post(
           "http://localhost:8000/chat/get_open_chat_for_customer",
@@ -152,16 +166,20 @@ export default function Home() {
           return [];
         }
         set_open_chat_message(response.data[0].Title);
-        return [];
+        const data = await axios.post(
+          "http://localhost:8000/message/findAll_for_sender",
+          {
+            chatId: response.data[0].id,
+          }
+        );
+        SetMessage(data.data);
       }
-      // Emit "joinRoom" event with the retrieved chat ID
-      socket.emit("joinRoom", response.data[0].id);
+      /////////////////////
       set_room(response.data[0].id);
-      setChat(response.data); // Assuming setChat updates the chat state
-      socket.emit("joinRoom", response.data[0].id);
+      setChat(response.data);
       agent = response.data[0].chatReceiverId;
       set_Agent_id(response.data[0].chatReceiverId);
-      console.log(agent, "agg");
+     
       try {
         const data = await axios.post(
           "http://localhost:8000/message/findAll_for_sender",
@@ -169,7 +187,7 @@ export default function Home() {
             chatId: response.data[0].id,
           }
         );
-        console.log(data, "get me msg", room);
+        //console.log(data.data, "get me msg", room);
         if (!data.data) {
           return [];
         }
@@ -235,11 +253,17 @@ export default function Home() {
           {
             chat_sender: token.payload2.id,
           }
-        ); // Replace with your API endpoint
-        //console.log('test')
-        //const data = await response.json();
-        console.log(response.data, "side");
-        setResolvedSessions(response.data);
+        );
+
+        // Sort data by a relevant property (e.g., 'resolved_at' in descending order)
+        const sortedData = response.data
+          .sort((a, b) => {
+            // Assuming 'resolved_at' is a date property
+            return new Date(b.resolved_at) - new Date(a.resolved_at);
+          })
+          .reverse();
+
+        setResolvedSessions(sortedData);
       } catch (error) {
         console.error("Error fetching resolved sessions:", error);
       }
@@ -249,10 +273,9 @@ export default function Home() {
   }, []); // Empty dependency array to fetch data only once on component mount
   ///////////////////// when active chat is clicked
   const active_chat = () => {
-    SetMessage([])
+    SetMessage([]);
     getChats();
     setIsChatResolved(false);
-
   };
   return (
     <main>
@@ -279,39 +302,11 @@ export default function Home() {
                         lastSenderName="Report"
                         info={session.Title}
                         style={conversationContentStyle}
-                      />
+                         />
+               
                     </Conversation>
-                    //  <div
-                    //    key={session.id}
-                    //    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-green-100 cursor-pointer"
-                    //    onClick={() => getAllResolvedMessages(session.id)}
-                    //  >
-                    //    <div className="flex flex-col">
-                    //      <p className="text-lg font-medium text-gray-700">
-                    //        {session.Title}
-                    //      </p>{" "}
-                    //      {/* Assuming session object has a `name` property */}
-                    //      <p className="text-sm text-gray-500">
-                    //        Session: {session.session}
-                    //      </p>{" "}
-                    //      {/* Assuming session object has an `id` property */}
-                    //    </div>
-                    //    <svg
-                    //      xmlns="http://www.w3.org/2000/svg"
-                    //      className="ml-2 h-6 w-6 text-green-500"
-                    //      fill="none"
-                    //      viewBox="0 0 24 24"
-                    //      stroke="currentColor"
-                    //    >
-                    //      <path
-                    //        strokeLinecap="round"
-                    //        strokeLinejoin="round"
-                    //        strokeWidth={2}
-                    //        d="M5 13l4 4L19 7"
-                    //      />
-                    //    </svg>
-                    //  </div>
-                  ))}
+                   
+                    ))}
               </div>
             </div>
           </ConversationList>
@@ -329,7 +324,7 @@ export default function Home() {
                 }}
               >
                 Welcome to our customer support
-                <button onClick={() => login()}>loginNN</button>
+                {/* <button onClick={() => login()}>loginN</button> */}
               </span>
               <button
                 onClick={() => active_chat()}
@@ -341,18 +336,7 @@ export default function Home() {
           </ConversationHeader>
 
           <MessageList>
-            {/* <MessageSeparator content="Saturday, 30 November 2019" /> */}
-            {open_chat_message && (
-              <Message
-                model={{
-                  direction: "outgoing",
-                  message: open_chat_message,
-                  position: "single",
-                  sender: "Zoe",
-                }}
-              ></Message>
-            )}
-            {message &&
+             {message &&
               message.map((msg) => (
                 <Message
                   key={msg.id}

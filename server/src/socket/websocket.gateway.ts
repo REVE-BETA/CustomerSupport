@@ -48,12 +48,11 @@ export class WebSocketGateways
     }
     try {
       const payload = this.jwt.verify(token);
-     
-        this.messaging.set(payload.id, {
-          ...payload,
-          socketId: client.id,
-        });
-      
+
+      this.messaging.set(payload.id, {
+        ...payload,
+        socketId: client.id,
+      });
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         console.log('Token expired');
@@ -66,7 +65,7 @@ export class WebSocketGateways
     // this.clients.set(client.id, { id: client.id, socket: client }); // Store the client
     try {
       const payload = this.jwt.verify(token);
-       if (!this.socketMapGroup.has(payload.role)) {
+      if (!this.socketMapGroup.has(payload.role)) {
         this.socketMapGroup.set(payload.role, []);
       }
 
@@ -92,16 +91,25 @@ export class WebSocketGateways
     this.messaging.delete(client.id); // Remove the client on disconnect
     ////////////
     this.socketMapGroup.forEach((group, key) => {
-      const updatedGroup = group.filter(socket => socket.socketId !== client.id);
+      const updatedGroup = group.filter(
+        (socket) => socket.socketId !== client.id,
+      );
       this.socketMapGroup.set(key, updatedGroup);
     });
   }
   ///////////////////
   handleSendMessages(data: any) {
-   // console.log(data, "full data")
+    // console.log(data, "full data")
     // Extract necessary data from the 'data' parameter
-    const { agentId,  customerIdId, content, chatId, Agent_send, Customer_send } = data[0];
-  
+    const {
+      agentId,
+      customerIdId,
+      content,
+      chatIdId,
+      Agent_send,
+      Customer_send,
+    } = data[0];
+
     // Emit message to the customer
     const customer = this.messaging.get(customerIdId);
     // console.log(customerIdId, "cid")
@@ -109,40 +117,39 @@ export class WebSocketGateways
     // console.log(customer, 'customer')
 
     if (customer) {
-     // console.log(customer, 'customer')
+      console.log(chatIdId, 'chat id');
       this.server.to(customer.socketId).emit('Message', {
         agentId,
         customerIdId,
         content,
-        chatId,
+        chatIdId,
         Agent_send,
         Customer_send,
       });
     }
-  
     // Emit message to the agent
     const agent = this.messaging.get(agentId);
     //console.log(agent, 'agent')
 
     if (agent) {
-     // console.log(agent, "agent")
+      // console.log(agent, "agent")
       this.server.to(agent.socketId).emit('Message', {
         agentId,
         customerIdId,
         content,
-        chatId,
+        chatIdId,
         Agent_send,
         Customer_send,
       });
     }
   }
   //////////////////
-  handleOpenSession(data: any){
-   // console.log(data[0], 'full data')
-   // console.log(this.socketMapGroup, "group")
+  handleOpenSession(data: any) {
+    // console.log(data[0], 'full data')
+    // console.log(this.socketMapGroup, "group")
     const sockets = this.socketMapGroup.get('agent') || [];
 
-    sockets.forEach(socketMeta => {
+    sockets.forEach((socketMeta) => {
       this.server.to(socketMeta.socketId).emit('openSession', data[0]);
     });
 
@@ -151,12 +158,12 @@ export class WebSocketGateways
     }
   }
   /////////////////
-  handleINSession(data: any){
+  handleINSession(data: any) {
     //console.log(data, 'full data')
-//console.log(this.socketMapGroup, "group")
+    //console.log(this.socketMapGroup, "group")
     const sockets = this.socketMapGroup.get('agent') || [];
 
-    sockets.forEach(socketMeta => {
+    sockets.forEach((socketMeta) => {
       this.server.to(socketMeta.socketId).emit('Insession', data);
     });
 
@@ -164,5 +171,38 @@ export class WebSocketGateways
       console.log(`No agent users online at the moment!`);
     }
   }
-   //////////////////
+  //////////////////
+  handleResolved(data: any) {
+    // console.log(data, 'full data')
+    //console.log(this.socketMapGroup, "group")
+    const sockets = this.socketMapGroup.get('user') || [];
+
+    sockets.forEach((socketMeta) => {
+      this.server.to(socketMeta.socketId).emit('resolved', data);
+    });
+
+    if (sockets.length === 0) {
+      console.log(`No agent users online at the moment!`);
+    }
+  }
+  handleSendNotification(data: any) {
+      const {
+      agentId,
+      content,
+      chatIdId ,
+      Agent_send
+    } = data[0];
+    // Emit message to the agent
+    const agent = this.messaging.get(agentId);
+    //console.log(agent, 'agent')
+    if (agent && !Agent_send) {
+      // console.log(agent, "agent")
+      this.server.to(agent.socketId).emit('notif', {
+        notif: 1,
+        content,
+        chatIdId
+       });
+    }
+
+  }
 }
