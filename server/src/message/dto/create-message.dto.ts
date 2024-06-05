@@ -11,4 +11,5 @@ export class CreateMessageDto {
      Customer_send:boolean;
      Agent_send:boolean;
      chatId: Chat
+     chatID: Chat
 }

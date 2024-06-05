@@ -1,15 +1,14 @@
-// import axios from "axios";
-// import React, { useEffect, useState } from "react";
+// // import axios from "axios";
+// // import React, { useEffect, useState } from "react";
 
-// const UserListComponent = () => {
-//   const token = JSON.parse(localStorage.getItem("access_token"));
-//   const { payload2 } = token;
+// // const UserListComponent = () => {
+// //   const token = JSON.parse(localStorage.getItem("access_token"));
+// //   const { payload2 } = token;
 
 //   const [activeTab, setActiveTab] = useState("Open");
 //   const [openChats, setOpenChats] = useState([]);
 //   const [resolvedChats, setResolvedChats] = useState([]);
-//   const [resolvedMessages, setResolvedMessages] = useState([])
-// ////////////////////////////
+
 //   const getOpenChats = async () => {
 //     try {
 //       const response = await axios.get("http://localhost:8000/chat/getAll", {
@@ -22,7 +21,7 @@
 //       console.error("Error fetching open chats:", error);
 //     }
 //   };
-// ///////////////////////////
+
 //   const getResolvedChats = async () => {
 //     try {
 //       const response = await axios.post(
@@ -41,7 +40,7 @@
 //       console.error("Error fetching resolved chats:", error);
 //     }
 //   };
-// ////////////////////////////
+
 //   useEffect(() => {
 //     if (activeTab === "Open") {
 //       getOpenChats();
@@ -49,22 +48,11 @@
 //       getResolvedChats();
 //     }
 //   }, [activeTab]);
-// ///////////////////////////
+
 //   const handleTabChange = (tab) => {
 //     setActiveTab(tab);
 //   };
-// //////////////////////////
-//   const getResolvedMessages = async (chatId) => {
-//     const data = await axios.post(
-//       "http://localhost:8000/message/get-resolved-messages",
-//       {
-//         chatId
-//       }
-//     )
-//     console.log(data.data, "datatatata");
-//     setResolvedMessages(data.data)
-//   }
-// /////////////////////////
+
 //   const accept_req = async (id) => {
 //     try {
 //       const response = await axios.patch(
@@ -119,73 +107,73 @@
 //         </button>
 //       </div>
 
-//       <div className="flex flex-col">
-//         <div className="overflow-y-auto">
-//           {activeTab === "Open" &&
-//             openChats &&
-//             openChats.map((chat) => (
-//               <div 
-//                 key={chat.chatId} 
-//                 className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
+// //       <div className="flex flex-col">
+// //         <div className="overflow-y-auto">
+// //           {activeTab === "Open" &&
+// //             openChats &&
+// //             openChats.map((chat) => (
+// //               <div 
+// //                 key={chat.chatId} 
+// //                 className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
                 
-//                 >
-//                 <div 
-//                   className="flex flex-col" 
-//                   >
-//                   <span className="text-lg">{chat.chatSender?.service_name}</span>
-//                   <p className="text-gray-600 text-sm mt-1">
-//                     <span>{chat.chatSender?.name}:</span>
-//                     {chat?.chatTitle.length > 20
-//                       ? `${chat?.chatTitle.substring(0, 20)}...`
-//                       : chat?.chatTitle}
-//                   </p>
-//                 </div>
-//                 <button
-//                   className="ml-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700"
-//                   onClick={() => accept_req(chat.chatId)}
-//                 >
-//                   Open
-//                 </button>
-//               </div>
-//             ))}
-//           {activeTab === "Resolved" &&
-//             resolvedChats &&
-//             resolvedChats.map((chat) => (
-//               <div 
-//                 key={chat.chatId} 
-//                 className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
-//                 onClick={()=> getResolvedMessages(chat.chatId)}
-//                 >
-//                 <div className="flex flex-col">
-//                   <span className="text-lg">{chat.chatSender?.service_name}</span>
-//                   <p className="text-gray-600 text-sm mt-1">
-//                     <span>{chat.chatSender?.name}:</span>{" "}
-//                     {chat?.chatTitle.length > 20
-//                       ? `${chat?.chatTitle.substring(0, 20)}...`
-//                       : chat?.chatTitle}
-//                   </p>
-//                 </div>
+// //                 >
+// //                 <div 
+// //                   className="flex flex-col" 
+// //                   >
+// //                   <span className="text-lg">{chat.chatSender?.service_name}</span>
+// //                   <p className="text-gray-600 text-sm mt-1">
+// //                     <span>{chat.chatSender?.name}:</span>
+// //                     {chat?.chatTitle.length > 20
+// //                       ? `${chat?.chatTitle.substring(0, 20)}...`
+// //                       : chat?.chatTitle}
+// //                   </p>
+// //                 </div>
+// //                 <button
+// //                   className="ml-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700"
+// //                   onClick={() => accept_req(chat.chatId)}
+// //                 >
+// //                   Open
+// //                 </button>
+// //               </div>
+// //             ))}
+// //           {activeTab === "Resolved" &&
+// //             resolvedChats &&
+// //             resolvedChats.map((chat) => (
+// //               <div 
+// //                 key={chat.chatId} 
+// //                 className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
+// //                 onClick={()=> getResolvedMessages(chat.chatId)}
+// //                 >
+// //                 <div className="flex flex-col">
+// //                   <span className="text-lg">{chat.chatSender?.service_name}</span>
+// //                   <p className="text-gray-600 text-sm mt-1">
+// //                     <span>{chat.chatSender?.name}:</span>{" "}
+// //                     {chat?.chatTitle.length > 20
+// //                       ? `${chat?.chatTitle.substring(0, 20)}...`
+// //                       : chat?.chatTitle}
+// //                   </p>
+// //                 </div>
               
-//                 <svg
-//                   xmlns="http://www.w3.org/2000/svg"
-//                   className="ml-2 h-6 w-6 text-green-500"
-//                   fill="none"
-//                   viewBox="0 0 24 24"
-//                   stroke="currentColor"
-//                 >
-//                   <path
-//                     strokeLinecap="round"
-//                     strokeLinejoin="round"
-//                     strokeWidth={2}
-//                     d="M5 13l4 4L19 7"
-//                   />
-//                 </svg>
-//               </div>
-//             ))}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
+// //                 <svg
+// //                   xmlns="http://www.w3.org/2000/svg"
+// //                   className="ml-2 h-6 w-6 text-green-500"
+// //                   fill="none"
+// //                   viewBox="0 0 24 24"
+// //                   stroke="currentColor"
+// //                 >
+// //                   <path
+// //                     strokeLinecap="round"
+// //                     strokeLinejoin="round"
+// //                     strokeWidth={2}
+// //                     d="M5 13l4 4L19 7"
+// //                   />
+// //                 </svg>
+// //               </div>
+// //             ))}
+// //         </div>
+// //       </div>
+// //     </div>
+// //   );
+// // };
 
-// export default UserListComponent;
+// // export default UserListComponent;

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 
 interface user {
   id: string;
@@ -27,7 +27,7 @@ interface GroupedMessage extends JwtPayload {
 interface messaging extends user {
   socketId: string;
 }
-@Injectable()
+@Injectable({ scope: Scope.DEFAULT }) // Use Scope.DEFAULT
 @WebSocketGateway({ cors: '*' }) //OnGatewayInit
 export class WebSocketGateways
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -48,12 +48,11 @@ export class WebSocketGateways
     }
     try {
       const payload = this.jwt.verify(token);
-     
-        this.messaging.set(payload.id, {
-          ...payload,
-          socketId: client.id,
-        });
-      
+
+      this.messaging.set(payload.id, {
+        ...payload,
+        socketId: client.id,
+      });
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         console.log('Token expired');
@@ -66,7 +65,7 @@ export class WebSocketGateways
     // this.clients.set(client.id, { id: client.id, socket: client }); // Store the client
     try {
       const payload = this.jwt.verify(token);
-       if (!this.socketMapGroup.has(payload.role)) {
+      if (!this.socketMapGroup.has(payload.role)) {
         this.socketMapGroup.set(payload.role, []);
       }
 
@@ -92,65 +91,118 @@ export class WebSocketGateways
     this.messaging.delete(client.id); // Remove the client on disconnect
     ////////////
     this.socketMapGroup.forEach((group, key) => {
-      const updatedGroup = group.filter(socket => socket.socketId !== client.id);
+      const updatedGroup = group.filter(
+        (socket) => socket.socketId !== client.id,
+      );
       this.socketMapGroup.set(key, updatedGroup);
     });
   }
-
-  afterInit(server: Server) {
-    console.log('WebSocket Gateway initialized');
-  }
-
-  @SubscribeMessage('joinRoom')
-  handleJoinRoom(client: Socket, chatId: string) {
-    console.log(`Client ${client.id} joining room ${chatId}`);
-    client.join(chatId); // Join the room specified by c_id
-  }
-
-  @SubscribeMessage('sendMessage')
-  handleSendMessage(client: Socket, payload: { roomId: string; message: any }) {
-    const { roomId } = payload;
-    console.log(
-      `Sending message "${payload.message.content}" to room ${roomId}`,
-    );
-
-    // Emit the message to all clients in the specified room
-    this.server.to(roomId).emit('message', payload.message);
-  }
   ///////////////////
-  async emitStateToGroup(state: any, role: string) {
-    const sockets = this.socketMapGroup.get(role) || [];
+  handleSendMessages(data: any) {
+    // console.log(data, "full data")
+    // Extract necessary data from the 'data' parameter
+    const {
+      agentId,
+      customerIdId,
+      content,
+      chatIdId,
+      Agent_send,
+      Customer_send,
+    } = data[0];
 
-    sockets.forEach(socketMeta => {
-      this.server.to(socketMeta.socketId).emit('session', state);
+    // Emit message to the customer
+    const customer = this.messaging.get(customerIdId);
+    // console.log(customerIdId, "cid")
+    // console.log(this.messaging, "messageing")
+    // console.log(customer, 'customer')
+
+    if (customer) {
+      console.log(chatIdId, 'chat id');
+      this.server.to(customer.socketId).emit('Message', {
+        agentId,
+        customerIdId,
+        content,
+        chatIdId,
+        Agent_send,
+        Customer_send,
+      });
+    }
+    // Emit message to the agent
+    const agent = this.messaging.get(agentId);
+    //console.log(agent, 'agent')
+
+    if (agent) {
+      // console.log(agent, "agent")
+      this.server.to(agent.socketId).emit('Message', {
+        agentId,
+        customerIdId,
+        content,
+        chatIdId,
+        Agent_send,
+        Customer_send,
+      });
+    }
+  }
+  //////////////////
+  handleOpenSession(data: any) {
+    // console.log(data[0], 'full data')
+    // console.log(this.socketMapGroup, "group")
+    const sockets = this.socketMapGroup.get('agent') || [];
+
+    sockets.forEach((socketMeta) => {
+      this.server.to(socketMeta.socketId).emit('openSession', data[0]);
     });
 
     if (sockets.length === 0) {
-      console.log(`No ${role} users online at the moment!`);
+      console.log(`No agent users online at the moment!`);
     }
   }
-  ////////////////////
-  @SubscribeMessage('notification')
-  handleNotification(client: Socket, payload: {message: any }) {
-    const { message } = payload;
+  /////////////////
+  handleINSession(data: any) {
+    //console.log(data, 'full data')
+    //console.log(this.socketMapGroup, "group")
+    const sockets = this.socketMapGroup.get('agent') || [];
 
-    // Check if the sender exists in the clients map
-    if (this.messaging.has(message.N_receiver)) {
-      console.log(message, 'receiver');
-      // Retrieve the recipient's client object from the map
-      const recipientClient = this.messaging.get(message.N_receiver);
-      console.log(recipientClient, 'recipientClient');
+    sockets.forEach((socketMeta) => {
+      this.server.to(socketMeta.socketId).emit('Insession', data);
+    });
 
-      // Emit the notification to the recipient's socket
-      if (recipientClient) {
-        this.server
-          .to(recipientClient.socketId)
-          .emit("Gnotification", message);
-      } else {
-        console.log(`Client with ID ${message.N_receiver} not found.`);
-      }
-    } else {
-      console.log(`Client with ID ${message.receiver} not found.`);
+    if (sockets.length === 0) {
+      console.log(`No agent users online at the moment!`);
     }
+  }
+  //////////////////
+  handleResolved(data: any) {
+    // console.log(data, 'full data')
+    //console.log(this.socketMapGroup, "group")
+    const sockets = this.socketMapGroup.get('user') || [];
+
+    sockets.forEach((socketMeta) => {
+      this.server.to(socketMeta.socketId).emit('resolved', data);
+    });
+
+    if (sockets.length === 0) {
+      console.log(`No agent users online at the moment!`);
+    }
+  }
+  handleSendNotification(data: any) {
+      const {
+      agentId,
+      content,
+      chatIdId ,
+      Agent_send
+    } = data[0];
+    // Emit message to the agent
+    const agent = this.messaging.get(agentId);
+    //console.log(agent, 'agent')
+    if (agent && !Agent_send) {
+      // console.log(agent, "agent")
+      this.server.to(agent.socketId).emit('notif', {
+        notif: 1,
+        content,
+        chatIdId
+       });
+    }
+
   }
 }

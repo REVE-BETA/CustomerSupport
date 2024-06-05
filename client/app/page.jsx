@@ -18,9 +18,9 @@ import UserListComponent from "./right";
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import io from "socket.io-client";
+import { stringify } from "postcss";
 var socket;
 export default function Home() {
-  
   const inputRef = useRef(null);
   const [msgInputValue, setMsgInputValue] = useState("");
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -34,11 +34,13 @@ export default function Home() {
   const [Message_field_active, set_Message_field_active] = useState(false);
   const [active_customer, set_active_customer] = useState("");
   const [current_chat, set_current_chat] = useState();
-  const [Chat_room, Set_Chat_room] = useState()
+  const [Chat_room, Set_Chat_room] = useState();
   const [activeTab, setActiveTab] = useState("Open");
   const [openChats, setOpenChats] = useState([]);
   const [resolvedChats, setResolvedChats] = useState([]);
   const [isChatResolved, setIsChatResolved] = useState(false); // State variable to track if chat is resolved
+  const [is_blocked, set_is_blocked] = useState(false);
+  const [msg_box_is_active, set_msg_box_is_active]=useState(false)
 
   ///////////////////////////////////
   const token = JSON.parse(localStorage.getItem("access_token"));
@@ -47,7 +49,7 @@ export default function Home() {
   // const token = JSON.parse(localStorage.getItem("access_token"));
   const { payload2 } = token;
 
-////////////////////////////
+  ////////////////////////////
   const getOpenChats = async () => {
     try {
       const response = await axios.get("http://localhost:8000/chat/getAll", {
@@ -55,14 +57,19 @@ export default function Home() {
           Authorization: `Bearer ${token.access_token}`,
         },
       });
+      // console.log(response.data, 'open chats')
       setOpenChats(response.data);
     } catch (error) {
       console.error("Error fetching open chats:", error);
     }
   };
-///////////////////////////
+  ///////////////////////////
   const getResolvedChats = async () => {
     try {
+      // Retrieve access token from localStorage
+      const token = JSON.parse(localStorage.getItem("access_token"));
+
+      // Construct the POST request with headers
       const response = await axios.post(
         "http://localhost:8000/chat/resolved_customer_for_agent",
         {
@@ -74,12 +81,22 @@ export default function Home() {
           },
         }
       );
-      setResolvedChats(response.data);
+
+      // Sort data by a relevant property (e.g., 'resolved_at' in descending order)
+      const sortedData = response.data
+        .sort((a, b) => {
+          // Assuming 'resolved_at' is a date property
+          return new Date(b.resolved_at) - new Date(a.resolved_at);
+        })
+        .reverse();
+
+      // Update state with sorted data
+      setResolvedChats(sortedData);
     } catch (error) {
       console.error("Error fetching resolved chats:", error);
     }
   };
-////////////////////////////
+  ////////////////////////////open chat and resolved chat
   useEffect(() => {
     if (activeTab === "Open") {
       getOpenChats();
@@ -87,18 +104,17 @@ export default function Home() {
       getResolvedChats();
     }
   }, [activeTab]);
-///////////////////////////
+  ///////////////////////////
   const handleTabChange = (tab) => {
     setActiveTab(tab);
   };
-
-/////////////////////////
+  /////////////////////////
   const accept_req = async (id) => {
     try {
       const response = await axios.patch(
         `http://localhost:8000/chat/in-session`,
         {
-          chat_receiver: 3, //payload2.id,
+          chat_receiver: payload2.id,
           chatId: id,
         },
         {
@@ -107,6 +123,8 @@ export default function Home() {
           },
         }
       );
+      console.log(response, "chatsss");
+
       ////////////////////////
       const data = await axios.patch(
         `http://localhost:8000/message/update_messages_agent`,
@@ -120,51 +138,101 @@ export default function Home() {
           },
         }
       );
-      console.log(data,'msgsssss')
+      const filterd_active_chat = openChats.filter((e) => e.chatId == id);
+      const filterd = { ...filterd_active_chat[0], chatSession: "in_session" };
+      console.log(filterd_active_chat, "selected chat");
+      console.log(filterd, "filterd");
+
+      setChat([...chat, filterd]);
     } catch (error) {
       console.error("Error changing it to in session:", error);
     }
   };
-  /////////////////////////
+  ///////////////////////// socket
   useEffect(() => {
+    localStorage.setItem('active_chat_box', JSON.stringify({ state: false, chat: Chat_room }));
+
     socket = io("http://localhost:8000/", {
       extraHeaders: {
         Authorization: `Bearer ${access_token}`,
       },
     });
-    socket.on("message", (messages) => {
-      console.log(messages,"socket_msg")
-      SetMessage((prevmsg)=>[...prevmsg, messages])
-      console.log(messages, "socket")
+    socket.on("Message", (messages) => {
+     // console.log(messages, "socket_msg");
+      SetMessage((prevmsg) => [...prevmsg, messages]);
+      // console.log(messages, "socket")
       //setMessages((prevMessages) => [...prevMessages, message]);
     });
+    socket.on("openSession", (sessions) => {
+      //  console.log(messages,"socket_msg")
+      // console.log(sessions, "socket_open_chat")
+      setOpenChats((prevchat) => [...prevchat, sessions]);
+
+      //setMessages((prevMessages) => [...prevMessages, message]);
+    });
+    //////////
+    socket.on("Insession", (sessions) => {
+      //  console.log(messages,"socket_msg")
+      // console.log(sessions.id, "socket_insession_chat")
+      const filter_sessioned_req = openChats.filter(
+        (chat) => chat.chatId !== sessions.id
+      );
+      setOpenChats(filter_sessioned_req);
+      console.log(filter_sessioned_req, "testing insession");
+
+      //setMessages((prevMessages) => [...prevMessages, message]);
+    });
+    ////////////////////////////////////
+   
+    console.log(msg_box_is_active, "fild wi");
+    socket.on("notif", (notif) => {
+      if (!msg_box_is_active) {
+      setChat((prevChat) =>
+        prevChat.map((chat) => {
+          if (chat.chatId === notif.chatIdId) {
+            return {
+              ...chat,
+              chatTitle: notif.content,
+              unseenMessagesCount: Number(chat.unseenMessagesCount || 0) + 1, // Increment unseenMessagesCount
+            };
+          }
+          return chat; // Ensure the other chats remain unchanged
+        })
+      );
+    }
+    });
+   
+    /////////////////////////
     return () => {
-      socket.off("message");
+      socket.off("Message");
+      socket.off("openSession");
+      socket.off("Insession");
+      socket.off("notif");
     };
   }, []);
   //////////////////////////
   const handleBackClick = () => setSidebarVisible(!sidebarVisible);
   ///////////////////////
   const handleSend = async (messages) => {
-   // console.log(token.payload2.id,"sendmsg")
+    // console.log(token.payload2.id,"sendmsg")
     const formatted = {
       agentId: token.payload2.id,
       customer_id: active_customer,
       content: messages,
-      chatId:Chat_room,
+      chatId: Chat_room,
       Agent_send: true,
       Customer_send: false,
     };
 
     try {
-      console.log(formatted, 'formated')
+      // console.log(formatted, 'formated')
       const { data } = await axios.post(
         "http://localhost:8000/message/send",
         formatted
       );
 
-     // SetMessage([...message, data[0]]); // Append the new message to the existing messages array
-      socket.emit("sendMessage", { roomId:Chat_room, message: data[0] });
+      // SetMessage([...message, data[0]]); // Append the new message to the existing messages array
+      socket.emit("sendMessage", { roomId: Chat_room, message: data[0] });
     } catch (error) {
       console.error("Error:", error);
     }
@@ -174,6 +242,8 @@ export default function Home() {
   };
   ////////////////////
   const handleConversationClick = async (agentId, customer_id, chatId) => {
+    localStorage.setItem('active_chat_box', JSON.stringify({ state: true, chat: Chat_room }));
+    set_msg_box_is_active(true)
     try {
       if (sidebarVisible) {
         setSidebarVisible(false);
@@ -183,23 +253,45 @@ export default function Home() {
         {
           agentId,
           customer_id,
-          chatId
+          chatId,
         }
       );
-      console.log(data,'messages getted')
+
+      //  console.log(data,'messages getted')
       SetMessage(data.data);
-      Set_Chat_room(chatId)
-      socket.emit("joinRoom", chatId);
+      Set_Chat_room(chatId);
+      const respons = await axios.patch(
+        "http://localhost:8000/message/make_msg_seen",
+        {
+          chatID: chatId,
+        }
+      );
+      //console.log(respons,"respons")
+
+      if (respons) {
+        console.log(respons, "respons");
+        const updatedChats = chat.map((chat) => {
+          if (chat.chatId === chatId) {
+            return {
+              ...chat,
+              unseenMessagesCount: 0,
+            };
+          }
+        });
+        setChat(updatedChats);
+      }
+
+      //  socket.emit("joinRoom", chatId);
 
       set_active_customer(customer_id);
       await set_current_chat(chat.filter((c) => c.chatId === chatId)); // Await setting current chat
       set_Message_field_active(true);
-
+      setIsChatResolved(false);
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
-  //////////////////////////
+  //////////////////////////style
   useEffect(() => {
     if (sidebarVisible) {
       setSidebarStyle({
@@ -238,14 +330,14 @@ export default function Home() {
   const getChats = async () => {
     try {
       if (!token) {
-        console.warn('No token found. User ID cannot be retrieved.');
+        console.warn("No token found. User ID cannot be retrieved.");
         return; // Early exit if no token
       }
-  
+
       const response = await axios.post(
         "http://localhost:8000/chat/get",
         {
-          chat_receiver: token.payload2.id
+          chat_receiver: token.payload2.id,
         },
         {
           headers: {
@@ -253,73 +345,120 @@ export default function Home() {
           },
         }
       );
-      console.log(response, "response");
-  
+      // console.log(response.data, "response chat");
+
       const chats = response.data; // Assuming response.data contains the chat array
-  console.log(chats, "chats");
+      // console.log(chats, "chats");
       // Sort chats based on chatCreatedAt in descending order (latest first)
       const sortedChats = chats.sort((a, b) => {
         const dateA = new Date(a.chatCreatedAt);
         const dateB = new Date(b.chatCreatedAt);
         return dateB.getTime() - dateA.getTime(); // Descending order
       });
-  
+
       // Filter resolved chats (assuming "resolved" is the value)
-      const resolvedChats = sortedChats.filter((chat) => chat.chatSession === "resolved");
-      const unresolvedChats = sortedChats.filter((chat) => chat.chatSession !== "resolved");
-  
+      const resolvedChats = sortedChats.filter(
+        (chat) => chat.chatSession === "resolved"
+      );
+      const unresolvedChats = sortedChats.filter(
+        (chat) => chat.chatSession !== "resolved"
+      );
+
       // Combine chats in desired order: unresolved first, then resolved
       const combinedChats = [...unresolvedChats, ...resolvedChats];
-  
+
       // Update chat state
       setChat(combinedChats);
     } catch (error) {
       console.error("Error fetching chat data:", error);
     }
   };
-  /////////////////
-  const handleBlock = async () => {
-    const id = current_chat[0].chatSenderId;
-    const response = await axios.patch(
-      `http://localhost:8000/customers/block/${id}`
-    );
-    console.log(response, "blocked");
-    // await set_current_chat(...current_chat ,current_chat[0].chatSender.isBlocked=true)
-  };
   ////////////////////
   const handleResolve = async () => {
     const id = current_chat[0].chatId;
-    console.log(current_chat[0])
+    // console.log(current_chat[0])
     const response = await axios.patch(
       `http://localhost:8000/chat/resolved/${id}`
     );
-    console.log(response.data,"resolved");
-    const filt = chat.filter((e)=>e.chatId !== id)
-    setChat(filt)
+    // console.log(response.data,"resolved");
+    const filt = chat.filter((e) => e.chatId !== id);
+    setChat(filt);
+    SetMessage([]);
+    set_Message_field_active(false);
   };
   //////////////////////////
   const getResolvedMessages = async (chatId) => {
     const data = await axios.post(
       "http://localhost:8000/message/get-resolved-messages",
       {
-        chatId: chatId
+        chatId: chatId,
       }
-    )
-    const datas = data.data
-    console.log(datas, "datatatata");
-    SetMessage(datas)
-    console.log(message, "messagesssss");
-    setIsChatResolved(true);
-  }
-  ///////////////////
-  const handleUnBlock = async () => {
-    const id = current_chat[0].chatSenderId;
-    const response = await axios.patch(
-      `http://localhost:8000/customers/Unblock/${id}`
     );
-    console.log(response, "unblocked");
+    const datas = data.data;
+    //console.log(datas, "datatatata");
+    SetMessage(datas);
+    //console.log(message, "messagesssss");
+    setIsChatResolved(true);
+    set_Message_field_active(true);
   };
   ///////////////////
+  const handleUnBlock = async () => {
+    // console.log(current_chat[0], "current");
+    const id = current_chat[0].chatSenderId;
+    try {
+      const response = await axios.patch(
+        `http://localhost:8000/customers/Unblock/${id}`
+      );
+
+      // Update state only if the API call is successful
+      if (response.status === 200) {
+        // Check for success status code
+        const updatedChat = {
+          ...current_chat[0],
+          chatSender: {
+            ...current_chat[0].chatSender,
+            isBlocked: 0, // Set 'isBlocked' to 0
+          },
+        };
+        console.log(updatedChat, "up un");
+        set_current_chat([updatedChat]);
+        set_is_blocked(false);
+      } else {
+        console.error("Error unblocking user:", response); // Log error for debugging
+      }
+    } catch (error) {
+      console.error("Error unblocking user:", error); // Log error for debugging
+    }
+  };
+  const handleBlock = async () => {
+    //console.log(current_chat[0], "current");
+
+    const id = current_chat[0].chatSenderId;
+    try {
+      const response = await axios.patch(
+        `http://localhost:8000/customers/block/${id}`
+      );
+
+      // Update state only if the API call is successful
+      if (response.status === 200) {
+        const updatedChat = {
+          ...current_chat[0],
+          chatSender: {
+            ...current_chat[0].chatSender,
+            isBlocked: 1, // Set 'isBlocked' to 1
+          },
+        };
+        // console.log(updatedChat, "up");
+        set_current_chat([updatedChat]);
+        set_is_blocked(true);
+      } else {
+        console.error("Error blocking user:", response); // Log error for debugging
+      }
+    } catch (error) {
+      console.error("Error blocking user:", error); // Log error for debugging
+    }
+  };
+  ///////////////////getChats
   useEffect(() => {
     getChats();
   }, []);
@@ -345,13 +484,14 @@ export default function Home() {
                       chats.chatId
                     )
                   }
+                  unreadCnt={chats.unseenMessagesCount}
                 >
                   <Avatar
                     src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"
                     name={chats.chatSender.name}
                     status={
                       chats.chatSession == "in_session" ? "dnd" : "available"
-                    } 
+                    }
                     style={conversationAvatarStyle}
                   />
                   <Conversation.Content
@@ -400,15 +540,15 @@ export default function Home() {
                   )}
                   {current_chat[0].chatSender.isBlocked ? (
                     <button
-                      class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
-                      onClick={() => handleUnBlock()}
+                      className="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
+                      onClick={handleUnBlock}
                     >
                       UnBlock
                     </button>
                   ) : (
                     <button
-                      class="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
-                      onClick={() => handleBlock()}
+                      className="hover:bg-red-600 px-4 py-2 ml-2 rounded bg-red-500 text-white font-bold"
+                      onClick={handleBlock}
                     >
                       Block
                     </button>
@@ -456,11 +596,10 @@ export default function Home() {
                 No Chat selected yet
                 <ConversationHeader.Back onClick={handleBackClick} />
               </MessageList.Content>
-              
             )}
           </MessageList>
           //active_customer
-          {  !isChatResolved ? (
+          {!isChatResolved ? (
             <MessageInput
               placeholder="Type message here"
               onSend={handleSend}
@@ -474,90 +613,95 @@ export default function Home() {
         </ChatContainer>
         <Sidebar position="right">
           <div className="flex flex-col">
-        <div className="flex bg-gray-200 p-2 mb-4">
-          <button
-            className={`mr-2 px-4 py-2 rounded ${
-              activeTab === "Open" ? "bg-blue-500 text-white" : "bg-gray-300"
-            }`}
-            onClick={() => handleTabChange("Open")}
-          >
-            Open
-          </button>
-          <button
-            className={`px-4 py-2 rounded ${
-              activeTab === "Resolved" ? "bg-blue-500 text-white" : "bg-gray-300"
-            }`}
-            onClick={() => handleTabChange("Resolved")}
-          >
-            Resolved
-          </button>
-        </div>
+            <div className="flex bg-gray-200 p-2 mb-4">
+              <button
+                className={`mr-2 px-4 py-2 rounded ${
+                  activeTab === "Open"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-300"
+                }`}
+                onClick={() => handleTabChange("Open")}
+              >
+                Open
+              </button>
+              <button
+                className={`px-4 py-2 rounded ${
+                  activeTab === "Resolved"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-300"
+                }`}
+                onClick={() => handleTabChange("Resolved")}
+              >
+                Resolved
+              </button>
+            </div>
 
-        <div className="flex flex-col">
-          <div className="overflow-y-auto">
-            {activeTab === "Open" &&
-              openChats &&
-              openChats.map((chat) => (
-                <div 
-                  key={chat.chatId} 
-                  className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
-                  
-                  >
-                  <div 
-                    className="flex flex-col" 
+            <div className="flex flex-col">
+              <div className="overflow-y-auto">
+                {activeTab === "Open" &&
+                  openChats &&
+                  openChats.map((chat) => (
+                    <div
+                      key={chat.chatId}
+                      className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
                     >
-                    <span className="text-lg">{chat.chatSender?.service_name}</span>
-                    <p className="text-gray-600 text-sm mt-1">
-                      <span>{chat.chatSender?.name}:</span>
-                      {chat?.chatTitle.length > 20
-                        ? `${chat?.chatTitle.substring(0, 20)}...`
-                        : chat?.chatTitle}
-                    </p>
-                  </div>
-                  <button
-                    className="ml-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700"
-                    onClick={() => accept_req(chat.chatId)}
-                  >
-                    Open
-                  </button>
-                </div>
-              ))}
-            {activeTab === "Resolved" &&
-              resolvedChats &&
-              resolvedChats.map((chat) => (
-                <div 
-                  key={chat.chatId} 
-                  className="flex items-center justify-between border-b border-gray-200 py-2 px-4"
-                  onClick={()=> getResolvedMessages(chat.chatId)}
-                  >
-                  <div className="flex flex-col">
-                    <span className="text-lg">{chat.chatSender?.service_name}</span>
-                    <p className="text-gray-600 text-sm mt-1">
-                      <span>{chat.chatSender?.name}:</span>{" "}
-                      {chat?.chatTitle.length > 20
-                        ? `${chat?.chatTitle.substring(0, 20)}...`
-                        : chat?.chatTitle}
-                    </p>
-                  </div>
-                
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="ml-2 h-6 w-6 text-green-500"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </div>
-              ))}
-          </div>
-        </div>
+                      <div className="flex flex-col">
+                        <span className="text-lg">
+                          {chat.chatSender?.service_name}
+                        </span>
+                        <p className="text-gray-600 text-sm mt-1">
+                          <span>{chat.chatSender?.name}:</span>
+                          {chat?.chatTitle.length > 20
+                            ? `${chat?.chatTitle.substring(0, 20)}...`
+                            : chat?.chatTitle}
+                        </p>
+                      </div>
+                      <button
+                        className="ml-2 px-4 py-1 rounded bg-blue-500 text-white font-bold hover:bg-blue-700"
+                        onClick={() => accept_req(chat.chatId)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                  ))}
+                {activeTab === "Resolved" &&
+                  resolvedChats &&
+                  resolvedChats.map((chat) => (
+                    <div
+                      key={chat.chatId}
+                      className="flex items-center justify-between border-b border-gray-200 py-2 px-4 hover:bg-green-100 cursor-pointer"
+                      onClick={() => getResolvedMessages(chat.chatId)}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-lg">
+                          {chat.chatSender?.service_name}
+                        </span>
+                        <p className="text-gray-600 text-sm mt-1">
+                          <span>{chat.chatSender?.name}:</span>{" "}
+                          {chat?.chatTitle.length > 20
+                            ? `${chat?.chatTitle.substring(0, 20)}...`
+                            : chat?.chatTitle}
+                        </p>
+                      </div>
+
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="ml-2 h-6 w-6 text-green-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+                  ))}
+              </div>
+            </div>
           </div>
         </Sidebar>
       </MainContainer>

@@ -17,8 +17,8 @@ import { WebSocketGateways } from './socket/websocket.gateway';
       type: 'mysql',
       host: 'localhost',
       port: 3306,
-      username: 'beti',
-      password: 'beti',
+      username: 'tati',
+      password: '123',
       database: 'Customer_support',
       entities: [Chat, Message,Customer,Agent],
       synchronize: false,// for production set it true
@@ -28,8 +28,7 @@ import { WebSocketGateways } from './socket/websocket.gateway';
     AgentModule,
     CustomersModule,
     AuthModule
-  
-  ],
+    ],
   controllers: [],
   providers: [WebSocketGateways],
   exports: [],

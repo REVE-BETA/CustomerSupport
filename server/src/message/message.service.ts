@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
@@ -6,12 +6,16 @@ import { CreateMessageDto } from './dto/create-message.dto';
 //import { Chat } from 'src/chat/entities/chat.entity';
 import { ChatService } from 'src/chat/chat.service';
 //import { error } from 'console';
+import { WebSocketGateways } from 'src/socket/websocket.gateway';
 
 @Injectable()
 export class MessageService {
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
+    private readonly webSocket : WebSocketGateways,
+    // @InjectRepository(Chat)
+    // private readonly ChatRepository: Repository<Message>,
     private readonly Chatservice: ChatService,
   ) {}
 
@@ -30,6 +34,22 @@ export class MessageService {
       //////////////////////
       if (!content && !customer_id) {
         return { msg: 'all filds must be filled' };
+      }
+      //////////////////////
+      const check_isUser_blocked = await this.messageRepository.query(
+        `
+        SELECT * FROM customer
+        WHERE id = ?
+        `,[ customer_id,]
+      )
+      if(check_isUser_blocked.length > 0){
+        if(check_isUser_blocked[0].isBlocked){
+          return {msg : 'user is blocked'}
+        }
+        //console.log(check_isUser_blocked, 'ckkkk')
+      }
+      else{
+        return {msg : 'no user is found with that id '}
       }
       /////////////////////
       // this function will check if the chat is resolced or not if so it will create new chat
@@ -105,6 +125,10 @@ export class MessageService {
         // Fetch the inserted message from the database using the insertId as the condition
         // const insertedMessage = await this.messageRepository.findOne(result.insertId);
         if (insertedMessage) {
+          this.webSocket.handleSendMessages(insertedMessage)
+          this.webSocket.handleSendNotification(insertedMessage)
+
+         console.log(insertedMessage, 'insertedMessage')
           return insertedMessage;
         } else {
           throw new Error(`Failed to retrieve inserted message`);
@@ -118,13 +142,13 @@ export class MessageService {
   }
   ///////////////////////////////////////////
   async findAll_for_sender(createMessageDto: CreateMessageDto) {
-    console.log(createMessageDto, 'get me msg')
+   // console.log(createMessageDto, 'get me msg')
     try {
       const messages = await this.messageRepository.query(
-        `SELECT * FROM message WHERE agentId = ? AND customerIdId = ? AND chatIdId = ?`,
+        `SELECT * FROM message WHERE chatIdId = ?`,
         [
-          createMessageDto.agentId,
-          createMessageDto.customer_id,
+          // createMessageDto.agentId,
+          // createMessageDto.customer_id,
           createMessageDto.chatId,
         ],
       );
@@ -148,7 +172,10 @@ export class MessageService {
   // }
   ///////////////////////////////////////////
   async update_messages_agent(createMessageDto: CreateMessageDto) {
-    console.log('create dto', createMessageDto);
+    if(!createMessageDto.agentId && !createMessageDto.chatId){
+      return {msg: 'fill all forms'}
+    }
+   // console.log('create dto', createMessageDto);
     try {
       const data = await this.messageRepository.query(
         `
@@ -159,7 +186,7 @@ export class MessageService {
         [createMessageDto.agentId, createMessageDto.chatId],
       );
       if (data) {
-        console.log(data, 'updated message');
+       // console.log(data, 'updated message');
         return data;
       } else {
         throw new Error('Something went wrong on updating message');
@@ -177,12 +204,25 @@ export class MessageService {
         WHERE chatIdId = ?`,
         [createMessageDto.chatId]
       )
-        console.log(resolvedMessages, "resolved message with specific chat id");
+       // console.log(resolvedMessages, "resolved message with specific chat id");
         return resolvedMessages
 
     }catch(error){
       return(`Failed to get message ${error.message}`)
     }
   }
-  
+  //////////////////////////////////////////
+  async markMessagesAsSeen(createMessageDto:CreateMessageDto) {
+    try {
+      await this.messageRepository.query(
+        `UPDATE message
+         SET seen = 1
+         WHERE chatIdId = ? AND Customer_send = 1 AND seen = 0`,
+        [createMessageDto.chatID]
+      );
+      return {chatId : createMessageDto.chatID};
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to mark messages as seen');
+    }
+  }
 }

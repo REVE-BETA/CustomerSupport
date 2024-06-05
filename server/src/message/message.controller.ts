@@ -26,8 +26,8 @@ export class MessageController {
     return this.messageService.get_resolved_messages(createMessageDto)
   }
 
-  // @Get('findAll_for_customer')
-  // findAll_for_customer(@Body() createMessageDto: CreateMessageDto) {
-  //   return this.messageService.findAll_for_customer(createMessageDto);
-  // }
+  @Patch('make_msg_seen')
+  async makeMessagesSeen(@Body() createMessageDto: CreateMessageDto) {
+    return this.messageService.markMessagesAsSeen(createMessageDto);
+    }
 }

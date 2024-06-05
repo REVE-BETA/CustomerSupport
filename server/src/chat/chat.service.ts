@@ -7,19 +7,33 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Chat, SessionStatus } from './entities/chat.entity';
 import { CreateChatDto } from './dto/create-chat.dto';
-//import { WebSocketGateways } from 'src/socket/websocket.gateway';
+import { WebSocketGateways } from 'src/socket/websocket.gateway';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectRepository(Chat)
     private readonly chatRepository: Repository<Chat>,
-    //private readonly socket: WebSocketGateways
+    private readonly socket: WebSocketGateways,
     //private socket : WebSocketGateways
   ) {}
   ///////////////////// this metod is called in messages service
   async check_existance_of_chat(content: any, customer_id: any) {
-    console.log(content, customer_id);
+    const check_isUser_blocked = await this.chatRepository.query(
+      `
+      SELECT * FROM customer
+      WHERE id = ?
+      `,[  customer_id,]
+    )
+    if(check_isUser_blocked.length > 0){
+      if(check_isUser_blocked[0].isBlocked){
+        return {msg : 'user is blocked'}
+      }
+    }
+    else{
+      return {msg : 'no user is found with that id '}
+    }
+   // console.log(content, customer_id);
     try {
       const Checking_If_The_req_Is_Open = await this.chatRepository.query(
         `
@@ -31,9 +45,9 @@ export class ChatService {
       );
       ///////
       if (Checking_If_The_req_Is_Open.length > 0) {
-        console.log(Checking_If_The_req_Is_Open);
+        // console.log(Checking_If_The_req_Is_Open);
         return {
-          state: 1,// open found
+          state: 1, // open found
           data: Checking_If_The_req_Is_Open,
           chatID: Checking_If_The_req_Is_Open[0].id,
         };
@@ -69,11 +83,34 @@ export class ChatService {
             `SELECT * FROM chat WHERE id = ?`,
             [newChat.identifiers[0].id], // Assuming the inserted ID is available in identifiers
           );
-
+          const insertedMessage_for_notif = await this.chatRepository.query(
+            `
+          SELECT
+            chat.id AS chatId,
+            chat.Title AS chatTitle,
+            chat.session AS chatSession,
+            chat.createdAt AS chatCreatedAt,
+            chat.chatSenderId AS chatSenderId,
+            chat.chatReceiverId AS chatReceiverId,
+            JSON_OBJECT(
+              'id', customer.id,
+              'email', customer.email,
+              'phone', customer.phone,
+              'service_name', customer.service_name,
+              'name', customer.name,
+              'isBlocked', customer.isBlocked
+            ) AS chatSender
+          FROM chat
+          INNER JOIN customer ON chat.chatSenderId = customer.id
+          WHERE chat.id = ?
+        `,
+            [newChat.identifiers[0].id],
+          );
           if (insertedMessage) {
-           // console.log(insertedMessage, "new tat")
+            this.socket.handleOpenSession(insertedMessage_for_notif);
+            console.log(insertedMessage, 'new tat');
             return {
-              state: 2,//new or resolved found and create new chat
+              state: 2, //new or resolved found and create new chat
               data: insertedMessage,
               chatID: insertedMessage[0].id,
             };
@@ -96,6 +133,20 @@ export class ChatService {
     try {
       if (!createChatDto.Title || !createChatDto.chat_sender) {
         throw new BadRequestException(' some fields are required');
+      }
+      const check_isUser_blocked = await this.chatRepository.query(
+        `
+        SELECT * FROM customer
+        WHERE id = ?
+        `,[  createChatDto.chat_sender,]
+      )
+      if(check_isUser_blocked.length > 0){
+        if(check_isUser_blocked[0].isBlocked){
+          return {msg : 'user is blocked'}
+        }
+      }
+      else{
+        return {msg : 'no user is found with that id '}
       }
       //Check if a chat already exists with the same sender and unresolved session
       const existingChat = await this.chatRepository.query(
@@ -152,32 +203,35 @@ export class ChatService {
         );
       }
       console.log('ok here');
-
+  
       const customers = await this.chatRepository.query(
         `
-      SELECT
-        chat.id AS chatId,
-        chat.Title AS chatTitle,
-        chat.session AS chatSession,
-        chat.createdAt AS chatCreatedAt,
-        chat.chatSenderId AS chatSenderId,
-        chat.chatReceiverId AS chatReceiverId,
-        JSON_OBJECT(
-          'id', customer.id,
-          'email', customer.email,
-          'phone', customer.phone,
-          'service_name', customer.service_name,
-          'name', customer.name,
-          'isBlocked', customer.isBlocked
-        ) AS chatSender
-      FROM chat
-      INNER JOIN customer ON chat.chatSenderId = customer.id
-      WHERE chat.chatReceiverId = ?
-      AND chat.session != ?
-    `,
+        SELECT
+          chat.id AS chatId,
+          chat.Title AS chatTitle,
+          chat.session AS chatSession,
+          chat.createdAt AS chatCreatedAt,
+          chat.chatSenderId AS chatSenderId,
+          chat.chatReceiverId AS chatReceiverId,
+          JSON_OBJECT(
+            'id', customer.id,
+            'email', customer.email,
+            'phone', customer.phone,
+            'service_name', customer.service_name,
+            'name', customer.name,
+            'isBlocked', customer.isBlocked
+          ) AS chatSender,
+          COUNT(message.id) AS unseenMessagesCount
+        FROM chat
+        INNER JOIN customer ON chat.chatSenderId = customer.id
+        LEFT JOIN message ON chat.id = message.chatIdId AND message.seen = 0 AND message.Customer_send = 1
+        WHERE chat.chatReceiverId = ?
+        AND chat.session != ?
+        GROUP BY chat.id, customer.id
+      `,
         [createChatDto.chat_receiver, SessionStatus.RESOLVED],
       );
-
+  
       if (customers.length > 0) {
         console.log('Customers available');
         return customers;
@@ -186,6 +240,7 @@ export class ChatService {
       return `Failed to fetch customers with agent id ${createChatDto.chat_receiver}`;
     }
   }
+  
   ///////////
   async get_Resolved_Customers_for_agent(createChatDto: CreateChatDto) {
     console.log(createChatDto, 'tati');
@@ -313,18 +368,28 @@ export class ChatService {
   }
   /////////////////////
   async setSessionToInSession(createChatDto: CreateChatDto) {
-    console.log(createChatDto);
-    const chat = await this.chatRepository.findOne({
-      where: { id: createChatDto.chatId },
-    });
-    if (!chat) {
-      throw new NotFoundException('Chat not found');
-    }
-    chat.session = SessionStatus.IN_SESSION;
-    chat.chat_receiver = createChatDto.chat_receiver;
-    //this.socket.emitStateToGroup(chat, 'agent')
+    // console.log(createChatDto);
+    try {
+      const chat = await this.chatRepository.findOne({
+        where: { id: createChatDto.chatId },
+      });
+      if (!chat) {
+        throw new NotFoundException('Chat not found');
+      }
+      chat.session = SessionStatus.IN_SESSION;
+      chat.chat_receiver = createChatDto.chat_receiver;
+      //this.socket.emitStateToGroup(chat, 'agent')
 
-    return this.chatRepository.save(chat);
+      const data = await this.chatRepository.save(chat);
+      if (!data) {
+        throw new Error('something went wrong');
+      }
+      console.log(data, 'insession data');
+      this.socket.handleINSession(data);
+      return data;
+    } catch (error) {
+      return error.message;
+    }
   }
   //////////////////
   async createCustomer(createChatDto: CreateChatDto) {
@@ -338,9 +403,10 @@ export class ChatService {
       `,
         [createChatDto.chat_sender, SessionStatus.IN_SESSION],
       );
+      // console.log(customer,'yaaa');
+      //console.log('tati')
 
       if (customer.length > 0) {
-        console.log('yaaa');
         return customer;
       }
       return [];
@@ -361,7 +427,7 @@ export class ChatService {
         [createChatDto.chat_sender, SessionStatus.OPEN],
       );
       if (customer.length > 0) {
-        console.log('yaaa');
+       //  console.log('yaaa',customer);
         return customer;
       }
       return [];
@@ -396,8 +462,11 @@ export class ChatService {
       throw new NotFoundException('Chat not found');
     }
     chat.session = SessionStatus.RESOLVED;
-    //this.socket.emitStateToGroup(chat, 'agent')
-    return this.chatRepository.save(chat);
+    const data = this.chatRepository.save(chat);
+    if (data) {
+      this.socket.handleResolved(chat);
+      return data;
+    }
   }
   async updateChat(id: number) {
     const chat = await this.chatRepository.findOne({ where: { id } });
@@ -406,5 +475,4 @@ export class ChatService {
     }
     /// code left
   }
-
 }
